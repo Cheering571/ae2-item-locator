@@ -2,6 +2,13 @@ package com.yg.ae2itemlocator.client;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
 
+/**
+ * Client-side configuration.
+ *
+ * <p>Every entry carries an explicit translation key so the NeoForge mod-list config screen follows
+ * the game language (the key plus {@code .tooltip}); the English comment stays as the fallback for
+ * languages we do not ship.
+ */
 public final class ClientConfig {
     public static final ModConfigSpec SPEC;
 
@@ -20,37 +27,75 @@ public final class ClientConfig {
 
     static {
         var builder = new ModConfigSpec.Builder();
-        builder.comment("AE2 Item Locator (client)").push("client");
+
+        builder.translation("ae2itemlocator.config.client")
+                .comment("AE2 Item Locator (client)")
+                .push("client");
 
         MAX_SOURCES = builder
+                .translation("ae2itemlocator.config.client.maxSources")
                 .comment("Maximum number of drive entries appended to an item tooltip.")
                 .defineInRange("maxSources", 3, 1, 12);
 
         BEAM = builder
+                .translation("ae2itemlocator.config.client.beam")
                 .comment("Draw a vertical light column above every highlighted drive.")
                 .define("beam", true);
 
         HIGHLIGHT_SECONDS = builder
+                .translation("ae2itemlocator.config.client.highlightSeconds")
                 .comment("Automatically clear a locked highlight after this many seconds.",
                         "0 keeps it until you press the key again.")
                 .defineInRange("highlightSeconds", 0, 0, 3600);
 
-        builder.comment("Colors are 0xRRGGBB.").push("colors");
+        builder.translation("ae2itemlocator.config.client.colors")
+                .comment("Colors are 0xRRGGBB.")
+                .push("colors");
+
         UNIFIED_COLOR = builder
+                .translation("ae2itemlocator.config.client.colors.unified")
                 .comment("Use a single color for the beam, the drive highlight and the slot highlight.")
                 .define("unified", true);
-        COLOR_UNIFIED = builder.defineInRange("unifiedValue", 0x66D9FF, 0, 0xFFFFFF);
-        COLOR_BEAM = builder.defineInRange("beam", 0x66D9FF, 0, 0xFFFFFF);
-        COLOR_DRIVE = builder.defineInRange("drive", 0x66D9FF, 0, 0xFFFFFF);
-        COLOR_SLOT = builder.defineInRange("slot", 0x66D9FF, 0, 0xFFFFFF);
+
+        COLOR_UNIFIED = builder
+                .translation("ae2itemlocator.config.client.colors.unifiedValue")
+                .comment("Color used while 'unified' is enabled.")
+                .defineInRange("unifiedValue", 0x66D9FF, 0, 0xFFFFFF);
+
+        COLOR_BEAM = builder
+                .translation("ae2itemlocator.config.client.colors.beam")
+                .comment("Color of the beacon beam when 'unified' is disabled.")
+                .defineInRange("beam", 0x66D9FF, 0, 0xFFFFFF);
+
+        COLOR_DRIVE = builder
+                .translation("ae2itemlocator.config.client.colors.drive")
+                .comment("Color of the drive highlight when 'unified' is disabled.")
+                .defineInRange("drive", 0x66D9FF, 0, 0xFFFFFF);
+
+        COLOR_SLOT = builder
+                .translation("ae2itemlocator.config.client.colors.slot")
+                .comment("Color of the slot outline when 'unified' is disabled.")
+                .defineInRange("slot", 0x66D9FF, 0, 0xFFFFFF);
+
         builder.pop();
 
-        builder.comment("Position of the on-screen status text, in permille of the screen size.").push("hud");
-        HUD_X = builder.defineInRange("x", 8, 0, 1000);
-        HUD_Y = builder.defineInRange("y", 8, 0, 1000);
-        builder.pop();
+        builder.translation("ae2itemlocator.config.client.hud")
+                .comment("Position of the on-screen status text, in permille of the screen size.")
+                .push("hud");
+
+        HUD_X = builder
+                .translation("ae2itemlocator.config.client.hud.x")
+                .comment("Horizontal position, 0 = left edge, 1000 = right edge.")
+                .defineInRange("x", 8, 0, 1000);
+
+        HUD_Y = builder
+                .translation("ae2itemlocator.config.client.hud.y")
+                .comment("Vertical position, 0 = top edge, 1000 = bottom edge.")
+                .defineInRange("y", 8, 0, 1000);
 
         builder.pop();
+        builder.pop();
+
         SPEC = builder.build();
     }
 

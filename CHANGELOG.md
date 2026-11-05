@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.1
+
+### Changed
+
+- The NeoForge mod-list config screen is now localised: every entry and category carries an
+  explicit translation key, so names and their tooltips follow the game language (English and
+  Simplified Chinese) instead of always showing the English comments. The English comments remain
+  as the fallback for other languages.
+
+No behaviour changes; existing config files keep working unchanged.
+
 ## 1.0.0 — first public release
 
 Minecraft 1.21.1 / NeoForge 21.1.169+ / Applied Energistics 2 19.2.18+
