@@ -1,0 +1,43 @@
+{
+  "key.categories.ae2itemlocator": "AE2 物品定位",
+  "key.ae2itemlocator.lock": "锁定 / 取消磁盘高亮",
+  "key.ae2itemlocator.config": "打开设置",
+
+  "gui.ae2itemlocator.config": "磁盘定位设置",
+  "gui.ae2itemlocator.unified": "统一配置高亮颜色",
+  "gui.ae2itemlocator.on": "开",
+  "gui.ae2itemlocator.off": "关",
+  "gui.ae2itemlocator.color.unified": "颜色",
+  "gui.ae2itemlocator.color.beam": "光柱",
+  "gui.ae2itemlocator.color.drive": "驱动器",
+  "gui.ae2itemlocator.color.slot": "槽位",
+  "gui.ae2itemlocator.section.colors": "高亮颜色",
+  "gui.ae2itemlocator.section.hud": "屏幕提示文字",
+  "gui.ae2itemlocator.hud_position": "调整提示文字位置",
+  "gui.ae2itemlocator.hud_hint": "拖动文字块调整位置，然后点确认",
+  "gui.ae2itemlocator.hud_sample": "高亮中：圆石（1 处）",
+  "gui.ae2itemlocator.done": "完成",
+  "gui.ae2itemlocator.confirm": "确认",
+  "gui.ae2itemlocator.cancel": "取消",
+
+  "tooltip.ae2itemlocator.header": "该物品存在于 %s 个磁盘槽位",
+  "tooltip.ae2itemlocator.entry": "  %s (%s, %s, %s) 槽位 %s",
+  "tooltip.ae2itemlocator.more": "  …另有 %s 处",
+  "tooltip.ae2itemlocator.indexing": "正在索引磁盘内容… %s%%",
+  "tooltip.ae2itemlocator.craftable_only": "未存入任何磁盘（仅可合成）",
+  "tooltip.ae2itemlocator.no_grid": "该终端未连接到可用的 ME 网络",
+  "tooltip.ae2itemlocator.hint": "按 [%s] 在世界中高亮该驱动器",
+  "tooltip.ae2itemlocator.subnet": "（子网）",
+
+  "hud.ae2itemlocator.locked": "高亮中：%s（%s 处）",
+  "hud.ae2itemlocator.locked.empty": "已锁定：%s — 当前不在任何磁盘中",
+  "hud.ae2itemlocator.other_dimension": "另有 %s 处位于其他维度",
+  "hud.ae2itemlocator.cleared": "已取消高亮",
+  "hud.ae2itemlocator.nothing": "当前没有指向任何物品",
+  "hud.ae2itemlocator.building": "仍在索引中… %s%%",
+  "hud.ae2itemlocator.craftable_only": "该物品没有存放在任何驱动器中",
+
+  "dimension.ae2itemlocator.overworld": "主世界",
+  "dimension.ae2itemlocator.nether": "下界",
+  "dimension.ae2itemlocator.end": "末地"
+}

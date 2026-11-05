@@ -1,0 +1,101 @@
+plugins {
+    id 'java-library'
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}
+
+// ---------------------------------------------------------------------------
+// NeoForge (ModDevGradle)
+// ---------------------------------------------------------------------------
+neoForge {
+    version = project.neo_version
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Dependencies
+// ---------------------------------------------------------------------------
+repositories {
+    maven {
+        name = 'ModMaven'
+        url = 'https://modmaven.dev/'
+        content { includeGroup 'appeng' }
+    }
+}
+
+dependencies {
+    // ---- AE2 -------------------------------------------------------------
+    // 编译期只需要 AE2 的 jar，放进 libs/ 即可（ModMaven 上只到 19.2.0-beta）。
+    // 用 implementation 而不是 compileOnly：这样 `runClient` / `runServer` 里也有 AE2，
+    // 否则开发环境会报 "ae2 is not installed"。
+    def ae2Local = fileTree(dir: 'libs', include: ['*.jar'])
+    if (!ae2Local.isEmpty()) {
+        implementation ae2Local
+        println "[ae2-disk-locator] using local AE2 jar from libs/"
+    } else {
+        compileOnly "appeng:appliedenergistics2:${ae2_version}"
+        runtimeOnly "appeng:appliedenergistics2:${ae2_version}"
+        println "[ae2-disk-locator] using maven AE2 ${ae2_version} (put a jar in libs/ if this fails)"
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Resources
+// ---------------------------------------------------------------------------
+tasks.withType(ProcessResources).configureEach {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            ae2_version            : ae2_version,
+            ae2_version_range      : ae2_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}

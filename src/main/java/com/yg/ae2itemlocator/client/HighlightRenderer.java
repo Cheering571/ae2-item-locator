@@ -1,0 +1,175 @@
+package com.yg.ae2itemlocator.client;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.yg.ae2itemlocator.common.CellRef;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+
+/**
+ * Draws the lock highlight: a translucent shell + wireframe around every drive that holds the
+ * locked key, plus an optional vertical light column.
+ *
+ * <p>Two things are easy to get wrong and both were:
+ * <ul>
+ *   <li>The {@link PoseStack} handed to this event is a <b>fresh identity stack</b>; vertices must
+ *       be camera-relative, so we translate by {@code -cameraPos} ourselves.</li>
+ *   <li>{@code AFTER_TRANSLUCENT_BLOCKS} is dispatched from the translucent flush and NeoForge
+ *       documents it as unreliable; {@code AFTER_PARTICLES} fires exactly once per frame.</li>
+ * </ul>
+ */
+public final class HighlightRenderer {
+
+    private static final float SHELL_ALPHA = 0.18f;
+    private static final float BEAM_ALPHA = 0.30f;
+
+    public static void onRenderLevel(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
+            return;
+        }
+        if (!HighlightState.isLocked() || !HighlightState.hasRefs()) {
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+        Level level = minecraft.level;
+        if (level == null) {
+            return;
+        }
+
+        Vec3 camera = event.getCamera().getPosition();
+        PoseStack pose = event.getPoseStack();
+        MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
+
+        int driveColor = ClientConfig.driveColor();
+        float dr = ((driveColor >> 16) & 0xFF) / 255f;
+        float dg = ((driveColor >> 8) & 0xFF) / 255f;
+        float db = (driveColor & 0xFF) / 255f;
+
+        int beamColor = ClientConfig.beamColor();
+        float br = ((beamColor >> 16) & 0xFF) / 255f;
+        float bg = ((beamColor >> 8) & 0xFF) / 255f;
+        float bb = (beamColor & 0xFF) / 255f;
+
+        pose.pushPose();
+        pose.translate(-camera.x, -camera.y, -camera.z);
+        try {
+            VertexConsumer quads = buffers.getBuffer(RenderType.debugQuads());
+            boolean drewShell = false;
+            for (CellRef ref : HighlightState.refs()) {
+                if (ref.dimension().equals(level.dimension())) {
+                    shell(pose, quads, ref.pos(), dr, dg, db);
+                    drewShell = true;
+                }
+            }
+            if (drewShell) {
+                buffers.endBatch(RenderType.debugQuads());
+            }
+
+            VertexConsumer lines = buffers.getBuffer(RenderType.lines());
+            boolean drewLines = false;
+            for (CellRef ref : HighlightState.refs()) {
+                if (ref.dimension().equals(level.dimension())) {
+                    // Two nested boxes: line width is not controllable through the shader
+                    // pipeline, so a second slightly larger box reads as a thicker outline.
+                    LevelRenderer.renderLineBox(pose, lines, new AABB(ref.pos()).inflate(0.002),
+                            dr, dg, db, 1.0f);
+                    LevelRenderer.renderLineBox(pose, lines, new AABB(ref.pos()).inflate(0.010),
+                            dr, dg, db, 0.55f);
+                    drewLines = true;
+                }
+            }
+            if (drewLines) {
+                buffers.endBatch(RenderType.lines());
+            }
+
+            if (ClientConfig.BEAM.get()) {
+                VertexConsumer beamQuads = buffers.getBuffer(RenderType.debugQuads());
+                boolean drewBeam = false;
+                for (CellRef ref : HighlightState.refs()) {
+                    if (ref.dimension().equals(level.dimension())) {
+                        beam(pose, beamQuads, ref.pos(), level, br, bg, bb);
+                        drewBeam = true;
+                    }
+                }
+                if (drewBeam) {
+                    buffers.endBatch(RenderType.debugQuads());
+                }
+            }
+        } finally {
+            pose.popPose();
+        }
+    }
+
+    /** Six translucent faces, slightly inflated so they do not z-fight with the drive block. */
+    private static void shell(PoseStack pose, VertexConsumer consumer, BlockPos pos,
+            float r, float g, float b) {
+        float x1 = pos.getX() - 0.005f;
+        float y1 = pos.getY() - 0.005f;
+        float z1 = pos.getZ() - 0.005f;
+        float x2 = pos.getX() + 1.005f;
+        float y2 = pos.getY() + 1.005f;
+        float z2 = pos.getZ() + 1.005f;
+
+        quad(pose, consumer, x1, y1, z1, x2, y1, z1, x2, y1, z2, x1, y1, z2, SHELL_ALPHA, r, g, b); // -Y
+        quad(pose, consumer, x1, y2, z1, x1, y2, z2, x2, y2, z2, x2, y2, z1, SHELL_ALPHA, r, g, b); // +Y
+        quad(pose, consumer, x1, y1, z1, x1, y2, z1, x2, y2, z1, x2, y1, z1, SHELL_ALPHA, r, g, b); // -Z
+        quad(pose, consumer, x1, y1, z2, x2, y1, z2, x2, y2, z2, x1, y2, z2, SHELL_ALPHA, r, g, b); // +Z
+        quad(pose, consumer, x1, y1, z1, x1, y1, z2, x1, y2, z2, x1, y2, z1, SHELL_ALPHA, r, g, b); // -X
+        quad(pose, consumer, x2, y1, z1, x2, y2, z1, x2, y2, z2, x2, y1, z2, SHELL_ALPHA, r, g, b); // +X
+    }
+
+    private static void beam(PoseStack pose, VertexConsumer consumer, BlockPos pos, Level level,
+            float r, float g, float b) {
+        float centerX = pos.getX() + 0.5f;
+        float centerZ = pos.getZ() + 0.5f;
+        float bottom = pos.getY() + 1.0f;
+        float top = Math.min(level.getMaxBuildHeight(), pos.getY() + 160.0f);
+        float half = 0.10f;
+
+        quad(pose, consumer,
+                centerX - half, bottom, centerZ - half,
+                centerX + half, bottom, centerZ - half,
+                centerX + half, top, centerZ - half,
+                centerX - half, top, centerZ - half, BEAM_ALPHA, r, g, b);
+        quad(pose, consumer,
+                centerX + half, bottom, centerZ + half,
+                centerX - half, bottom, centerZ + half,
+                centerX - half, top, centerZ + half,
+                centerX + half, top, centerZ + half, BEAM_ALPHA, r, g, b);
+        quad(pose, consumer,
+                centerX + half, bottom, centerZ - half,
+                centerX + half, bottom, centerZ + half,
+                centerX + half, top, centerZ + half,
+                centerX + half, top, centerZ - half, BEAM_ALPHA, r, g, b);
+        quad(pose, consumer,
+                centerX - half, bottom, centerZ + half,
+                centerX - half, bottom, centerZ - half,
+                centerX - half, top, centerZ - half,
+                centerX - half, top, centerZ + half, BEAM_ALPHA, r, g, b);
+    }
+
+    private static void quad(PoseStack pose,
+            VertexConsumer consumer,
+            float x1, float y1, float z1,
+            float x2, float y2, float z2,
+            float x3, float y3, float z3,
+            float x4, float y4, float z4,
+            float alpha, float r, float g, float b) {
+        PoseStack.Pose entry = pose.last();
+        consumer.addVertex(entry, x1, y1, z1).setColor(r, g, b, alpha);
+        consumer.addVertex(entry, x2, y2, z2).setColor(r, g, b, alpha);
+        consumer.addVertex(entry, x3, y3, z3).setColor(r, g, b, alpha);
+        consumer.addVertex(entry, x4, y4, z4).setColor(r, g, b, alpha);
+    }
+
+    private HighlightRenderer() {
+    }
+}

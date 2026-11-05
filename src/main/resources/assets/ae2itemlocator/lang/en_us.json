@@ -1,0 +1,43 @@
+{
+  "key.categories.ae2itemlocator": "AE2 Item Locator",
+  "key.ae2itemlocator.lock": "Lock / clear drive highlight",
+  "key.ae2itemlocator.config": "Open settings",
+
+  "gui.ae2itemlocator.config": "Disk Locator",
+  "gui.ae2itemlocator.unified": "Use one color",
+  "gui.ae2itemlocator.on": "On",
+  "gui.ae2itemlocator.off": "Off",
+  "gui.ae2itemlocator.color.unified": "Color",
+  "gui.ae2itemlocator.color.beam": "Beam",
+  "gui.ae2itemlocator.color.drive": "Drive",
+  "gui.ae2itemlocator.color.slot": "Slot",
+  "gui.ae2itemlocator.section.colors": "Highlight colors",
+  "gui.ae2itemlocator.section.hud": "On-screen text",
+  "gui.ae2itemlocator.hud_position": "Adjust status text position",
+  "gui.ae2itemlocator.hud_hint": "Drag the text block to move it, then press Confirm",
+  "gui.ae2itemlocator.hud_sample": "Locked: Cobblestone (1)",
+  "gui.ae2itemlocator.done": "Done",
+  "gui.ae2itemlocator.confirm": "Confirm",
+  "gui.ae2itemlocator.cancel": "Cancel",
+
+  "tooltip.ae2itemlocator.header": "%s drive slot(s) hold this item",
+  "tooltip.ae2itemlocator.entry": "  %s (%s, %s, %s) slot %s",
+  "tooltip.ae2itemlocator.more": "  …and %s more",
+  "tooltip.ae2itemlocator.indexing": "Indexing drive contents… %s%%",
+  "tooltip.ae2itemlocator.craftable_only": "Not stored in any drive (craftable only)",
+  "tooltip.ae2itemlocator.no_grid": "No ME network reachable from this terminal",
+  "tooltip.ae2itemlocator.hint": "Press [%s] to highlight the drive in world",
+  "tooltip.ae2itemlocator.subnet": " (subnet)",
+
+  "hud.ae2itemlocator.locked": "Highlighting: %s (%s spots)",
+  "hud.ae2itemlocator.locked.empty": "Locked: %s — not in any drive",
+  "hud.ae2itemlocator.other_dimension": "%s spot(s) are in another dimension",
+  "hud.ae2itemlocator.cleared": "Highlight cleared",
+  "hud.ae2itemlocator.nothing": "Nothing hovered",
+  "hud.ae2itemlocator.building": "Still indexing… %s%%",
+  "hud.ae2itemlocator.craftable_only": "That item is not stored in any drive",
+
+  "dimension.ae2itemlocator.overworld": "Overworld",
+  "dimension.ae2itemlocator.nether": "Nether",
+  "dimension.ae2itemlocator.end": "The End"
+}

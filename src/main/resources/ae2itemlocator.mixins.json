@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "com.yg.ae2itemlocator.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MEStorageScreenMixin",
+    "AEBaseScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}
