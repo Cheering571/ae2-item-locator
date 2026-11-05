@@ -1,5 +1,7 @@
 # AE2 Item Locator
 
+**English** · [简体中文](README.zh-CN.md)
+
 **Stop pulling disks one by one.**
 
 AE2 Item Locator answers a question Applied Energistics 2 cannot: *"which physical drive is this
@@ -27,13 +29,44 @@ across the base, even in another dimension.
 
 ## Screenshots
 
+The in-game UI ships in English and Chinese; the screenshots below were taken with the Chinese
+language selected.
+
 <p align="center">
-  <img src="docs/screenshots/tooltip.png" width="49%" alt="Tooltip showing where an item is stored">
-  <img src="docs/screenshots/world-highlight.png" width="49%" alt="Drive highlighted in the world">
+  <img src="docs/screenshots/tooltip.png" width="82%" alt="Item tooltip listing the drives that hold the item">
 </p>
+
 <p align="center">
-  <img src="docs/screenshots/drive-slots.png" width="49%" alt="Slot outline inside a drive">
-  <img src="docs/screenshots/config.png" width="49%" alt="Settings screen">
+  <em>The tooltip lists every drive holding the item, its coordinates and slot. Items reached
+  through a subnetwork are marked <code>(subnet)</code>.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/world-highlight.jpg" width="100%" alt="Locked drive highlighted in the world">
+</p>
+
+<p align="center">
+  <em>Press <code>H</code> to lock the highlight: a translucent shell, a wireframe and a beacon beam
+  that survives closing the terminal.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/drive-slots.png" width="49%" alt="Drive slot outline">
+  <img src="docs/screenshots/config-unified.png" width="49%" alt="Settings with one colour for everything">
+</p>
+
+<p align="center">
+  <em>Left: the matching slot is outlined in the drive GUI. Right: one colour for beam, drive and
+  slot.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/config-separate.png" width="49%" alt="Settings with separate colours">
+</p>
+
+<p align="center">
+  <em>Uncheck "one colour" to set the beam, the drive highlight and the slot outline independently
+  — RGB sliders plus hex input, updated live.</em>
 </p>
 
 ## Compatibility
