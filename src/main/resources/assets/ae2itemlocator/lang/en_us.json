@@ -60,6 +60,7 @@
 
   "tooltip.ae2itemlocator.header": "%s drive slot(s) hold this item",
   "tooltip.ae2itemlocator.entry": "  %s (%s, %s, %s) slot %s",
+  "tooltip.ae2itemlocator.entry_block": "  %s (%s, %s, %s) %s",
   "tooltip.ae2itemlocator.more": "  …and %s more",
   "tooltip.ae2itemlocator.indexing": "Indexing drive contents… %s%%",
   "tooltip.ae2itemlocator.craftable_only": "Not stored in any drive (craftable only)",

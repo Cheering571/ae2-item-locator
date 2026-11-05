@@ -60,6 +60,7 @@
 
   "tooltip.ae2itemlocator.header": "该物品存在于 %s 个磁盘槽位",
   "tooltip.ae2itemlocator.entry": "  %s (%s, %s, %s) 槽位 %s",
+  "tooltip.ae2itemlocator.entry_block": "  %s (%s, %s, %s) %s",
   "tooltip.ae2itemlocator.more": "  …另有 %s 处",
   "tooltip.ae2itemlocator.indexing": "正在索引磁盘内容… %s%%",
   "tooltip.ae2itemlocator.craftable_only": "未存入任何磁盘（仅可合成）",

@@ -73,12 +73,19 @@ public final class DiskTooltip {
                 break;
             }
             shown++;
-            var line = Component.translatable("tooltip.ae2itemlocator.entry",
-                    dimensionName(ref.dimension()),
-                    ref.pos().getX(),
-                    ref.pos().getY(),
-                    ref.pos().getZ(),
-                    ref.slot()).withStyle(ChatFormatting.DARK_GRAY);
+            var line = ref.slot() == CellRef.NO_SLOT
+                    ? Component.translatable("tooltip.ae2itemlocator.entry_block",
+                            dimensionName(ref.dimension()),
+                            ref.pos().getX(),
+                            ref.pos().getY(),
+                            ref.pos().getZ(),
+                            ref.cellType()).withStyle(ChatFormatting.DARK_GRAY)
+                    : Component.translatable("tooltip.ae2itemlocator.entry",
+                            dimensionName(ref.dimension()),
+                            ref.pos().getX(),
+                            ref.pos().getY(),
+                            ref.pos().getZ(),
+                            ref.slot()).withStyle(ChatFormatting.DARK_GRAY);
             if (ref.subnet()) {
                 line.append(Component.translatable("tooltip.ae2itemlocator.subnet")
                         .withStyle(ChatFormatting.DARK_GRAY));

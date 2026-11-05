@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.0
+
+### Added
+
+- **Addon storage blocks are now located.** Drives that keep their contents in a cell item but do
+  not implement AE2's `IChestOrDrive` were invisible to the scan; they are now found through the
+  `getCellStack()` / `getCellInventory()` contract that such blocks share.
+  Reference case: **Neo ECO AE Extension**'s `eco_drive` with its ECO storage matrix cells, which
+  previously reported "not stored in any drive".
+  The tooltip shows the drive's coordinates and the installed cell's name instead of a slot number.
+
+### Notes
+
+- The probe is reflective so the mod keeps building without addon jars on the classpath.
+- The drive-GUI slot outline only applies to drives whose menu is an AE2 drive menu; single-cell
+  storage blocks have no slot to outline.
+
 ## 1.0.1
 
 ### Changed

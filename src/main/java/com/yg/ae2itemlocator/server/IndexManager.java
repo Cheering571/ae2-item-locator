@@ -119,6 +119,9 @@ public final class IndexManager {
             for (var drive : drives) {
                 scanDrive(new GridIndex.DriveRef(drive, subnet), key, counter, result, seen, detail);
             }
+            for (var host : GridIndex.findCellHosts(scanned)) {
+                scanCellHost(new GridIndex.CellHost(host, subnet), key, counter, result, seen, detail);
+            }
         }
 
         // Positional fallback: drives in the loaded chunks around the network's own blocks. This
@@ -128,6 +131,10 @@ public final class IndexManager {
         for (var ref : GridIndex.nearbyDrives(grid)) {
             nearby++;
             scanDrive(ref, key, counter, result, seen, detail);
+        }
+        for (var host : GridIndex.nearbyCellHosts(grid)) {
+            nearby++;
+            scanCellHost(new GridIndex.CellHost(host, true), key, counter, result, seen, detail);
         }
 
         // Log only when the answer changes, so this is readable instead of 4 lines per second.
@@ -203,6 +210,49 @@ public final class IndexManager {
                     .append(cellRef.pos().getZ()).append(") slot ").append(slot)
                     .append(ref.subnet() ? " subnet" : " root").append(' ');
         }
+    }
+
+    /**
+     * One addon cell host: a single AE cell exposed through {@code getCellInventory()} instead of
+     * {@code IChestOrDrive}, so there is no slot number to report.
+     */
+    private static void scanCellHost(GridIndex.CellHost host, appeng.api.stacks.AEKey key,
+            appeng.api.stacks.KeyCounter counter,
+            java.util.List<com.yg.ae2itemlocator.common.CellRef> out,
+            java.util.Set<Long> seenPos,
+            StringBuilder detail) {
+        var blockEntity = host.blockEntity();
+        if (!seenPos.add(blockEntity.getBlockPos().asLong())) {
+            return;
+        }
+        var level = blockEntity.getLevel();
+        if (level == null || blockEntity.isRemoved()) {
+            return;
+        }
+
+        appeng.api.storage.MEStorage inventory = CellHostProbe.storage(blockEntity);
+        if (inventory == null) {
+            return;
+        }
+
+        counter.clear();
+        try {
+            inventory.getAvailableStacks(counter);
+        } catch (Throwable t) {
+            return;
+        }
+        if (counter.get(key) <= 0) {
+            return;
+        }
+
+        var cellRef = new com.yg.ae2itemlocator.common.CellRef(level.dimension(),
+                blockEntity.getBlockPos(), com.yg.ae2itemlocator.common.CellRef.NO_SLOT,
+                CellHostProbe.cellLabel(blockEntity), host.subnet());
+        out.add(cellRef);
+        detail.append('(').append(cellRef.pos().getX()).append(',')
+                .append(cellRef.pos().getY()).append(',')
+                .append(cellRef.pos().getZ()).append(") cell")
+                .append(host.subnet() ? " subnet" : " root").append(' ');
     }
 
     private static void evictIfNeeded() {

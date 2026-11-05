@@ -18,6 +18,9 @@ import net.minecraft.world.level.Level;
  */
 public record CellRef(ResourceKey<Level> dimension, BlockPos pos, int slot, String cellType, boolean subnet) {
 
+    /** Marks a storage block that has no slot concept (a single-cell storage matrix drive). */
+    public static final int NO_SLOT = -1;
+
     public static void write(FriendlyByteBuf buf, CellRef ref) {
         buf.writeResourceLocation(ref.dimension.location());
         buf.writeLong(ref.pos.asLong());

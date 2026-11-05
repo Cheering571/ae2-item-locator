@@ -24,7 +24,7 @@ across the base, even in another dimension.
 | **In-world highlight** | A translucent shell, a wireframe and an optional beacon beam mark the drive. Survives closing the terminal. |
 | **Slot outline** | Open the drive and the exact slot that holds the disk is outlined, so you know which disk to pull. |
 | **Subnetwork aware** | Storage-bus bridges are followed; results coming from a subnet are labelled as such. |
-| **Drive-agnostic** | Anything implementing AE2's `IChestOrDrive` works, including addon drives with custom slot layouts. |
+| **Drive-agnostic** | Anything implementing AE2's `IChestOrDrive` works, including addon drives with custom slot layouts — plus single-cell storage blocks such as Neo ECO AE's storage matrix drives. |
 | **Colours & HUD position** | Fully configurable in an in-game screen; the status text can be dragged anywhere. |
 
 ## Screenshots
@@ -74,6 +74,9 @@ language selected.
 | Minecraft | Loader | NeoForge | AE2 | Status |
 |---|---|---|---|---|
 | 1.21.1 | NeoForge | 21.1.169+ | 19.2.18 – 19.x | Supported |
+
+Optional integration: **Neo ECO AE Extension** 21.2.x — its storage matrix drives (`eco_drive`) are
+located even though they do not implement `IChestOrDrive`.
 
 Requires **Applied Energistics 2** and its dependency **GuideME**. The mod must be installed on
 **both** the client and the server (in singleplayer that is automatic). With only one side
@@ -155,6 +158,9 @@ The client only ever receives "which drives hold *this* key", never the whole in
   the terrain is what you navigate by. Cross-dimension results are shown as text only.
 - The positional fallback may list a drive from a *different* network that happens to be built right
   next to yours and happens to contain the same item. It is labelled as a subnet result.
+- **Single-cell storage blocks** (Neo ECO AE storage matrix drives) have no slot, so the tooltip
+  shows the block coordinates and the cell's name instead of a slot number, and the drive-GUI slot
+  outline does not apply to them.
 
 ## Building from source
 

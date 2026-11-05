@@ -46,10 +46,19 @@ public final class GridIndex {
     private final Map<AEKey, List<CellRef>> byKey = new HashMap<>();
     private final IGrid grid;
     private final List<DriveRef> drives;
+    /** Addon cell hosts (drives that store their contents in a cell item but are not IChestOrDrive). */
+    private final List<CellHost> cellHosts;
     private final int totalCells;
 
     /** A drive plus whether it was reached through a storage bus into a subnetwork. */
     public record DriveRef(IChestOrDrive drive, boolean subnet) {
+    }
+
+    /**
+     * A block entity that owns a single AE cell but does not implement {@code IChestOrDrive}, such
+     * as Neo ECO AE's storage matrix drive. See {@link CellHostProbe}.
+     */
+    public record CellHost(BlockEntity blockEntity, boolean subnet) {
     }
 
     /**
@@ -60,6 +69,7 @@ public final class GridIndex {
 
     private int driveCursor;
     private int slotCursor;
+    private int cellHostCursor;
     private int scannedCells;
     private State state = State.BUILDING;
 
@@ -107,6 +117,25 @@ public final class GridIndex {
 
         this.drives = allDrives;
 
+        // Addon cell hosts: same networks, same positional fallback, different storage API.
+        var hosts = new ArrayList<CellHost>();
+        for (IGrid scanned : collectGrids(grid)) {
+            boolean subnet = scanned != grid;
+            for (BlockEntity be : findCellHosts(scanned)) {
+                if (!seenPos.add(be.getBlockPos().asLong())) {
+                    continue;
+                }
+                hosts.add(new CellHost(be, subnet));
+            }
+        }
+        for (BlockEntity be : nearbyCellHosts(grid)) {
+            if (!seenPos.add(be.getBlockPos().asLong())) {
+                continue;
+            }
+            hosts.add(new CellHost(be, true));
+        }
+        this.cellHosts = hosts;
+
         int total = 0;
         for (DriveRef ref : drives) {
             try {
@@ -115,7 +144,7 @@ public final class GridIndex {
                 // A misbehaving addon drive must not break the whole index.
             }
         }
-        this.totalCells = total;
+        this.totalCells = total + cellHosts.size();
 
         // Snapshot the network's key count at build start. If it moved while we were scanning,
         // pollDirty() will notice the mismatch afterwards and trigger another pass.
@@ -149,6 +178,24 @@ public final class GridIndex {
             }
         }
         return new ArrayList<>(found);
+    }
+
+    /**
+     * Addon drives that keep their storage in a cell item but are not {@code IChestOrDrive}
+     * (Neo ECO AE's storage matrix drives are the reference case).
+     */
+    static List<BlockEntity> findCellHosts(IGrid grid) {
+        var found = new ArrayList<BlockEntity>();
+        var seen = new java.util.HashSet<Long>();
+        for (IGridNode node : grid.getNodes()) {
+            if (node.getOwner() instanceof BlockEntity be
+                    && !(be instanceof IChestOrDrive)
+                    && CellHostProbe.supports(be)
+                    && seen.add(be.getBlockPos().asLong())) {
+                found.add(be);
+            }
+        }
+        return found;
     }
 
     /**
@@ -258,8 +305,7 @@ public final class GridIndex {
         int processed = 0;
         while (processed < maxCells && System.nanoTime() < deadlineNanos) {
             if (driveCursor >= drives.size()) {
-                finish();
-                return;
+                break;
             }
 
             DriveRef ref = drives.get(driveCursor);
@@ -283,8 +329,49 @@ public final class GridIndex {
             processed++;
         }
 
-        if (driveCursor >= drives.size()) {
+        // Cell hosts come after the regular drives, one block at a time.
+        while (processed < maxCells && System.nanoTime() < deadlineNanos
+                && cellHostCursor < cellHosts.size()) {
+            scanCellHost(cellHosts.get(cellHostCursor));
+            cellHostCursor++;
+            scannedCells++;
+            processed++;
+        }
+
+        if (driveCursor >= drives.size() && cellHostCursor >= cellHosts.size()) {
             finish();
+        }
+    }
+
+    /**
+     * Reads one addon cell host: a single cell item, so there is no slot number to report.
+     */
+    private void scanCellHost(CellHost host) {
+        BlockEntity blockEntity = host.blockEntity();
+        Level level = blockEntity.getLevel();
+        if (level == null || blockEntity.isRemoved()) {
+            return;
+        }
+
+        MEStorage inventory = CellHostProbe.storage(blockEntity);
+        if (inventory == null) {
+            return;
+        }
+
+        KeyCounter counter = new KeyCounter();
+        try {
+            inventory.getAvailableStacks(counter);
+        } catch (Throwable t) {
+            return;
+        }
+        if (counter.isEmpty()) {
+            return;
+        }
+
+        CellRef cellRef = new CellRef(level.dimension(), blockEntity.getBlockPos(), CellRef.NO_SLOT,
+                CellHostProbe.cellLabel(blockEntity), host.subnet());
+        for (AEKey key : counter.keySet()) {
+            byKey.computeIfAbsent(key, ignored -> new ArrayList<>(2)).add(cellRef);
         }
     }
 
@@ -461,6 +548,29 @@ public final class GridIndex {
      */
     static List<DriveRef> nearbyDrives(IGrid root) {
         var result = new ArrayList<DriveRef>();
+        forEachNearbyBlockEntity(root, blockEntity -> {
+            if (blockEntity instanceof IChestOrDrive drive) {
+                result.add(new DriveRef(drive, true));
+            }
+        });
+        return result;
+    }
+
+    /**
+     * Same positional fallback, for addon cell hosts instead of {@code IChestOrDrive} drives.
+     */
+    static List<BlockEntity> nearbyCellHosts(IGrid root) {
+        var result = new ArrayList<BlockEntity>();
+        forEachNearbyBlockEntity(root, blockEntity -> {
+            if (!(blockEntity instanceof IChestOrDrive) && CellHostProbe.supports(blockEntity)) {
+                result.add(blockEntity);
+            }
+        });
+        return result;
+    }
+
+    private static void forEachNearbyBlockEntity(IGrid root,
+            java.util.function.Consumer<BlockEntity> consumer) {
         var byLevel = new IdentityHashMap<Level, List<BlockPos>>();
 
         for (IGridNode node : root.getNodes()) {
@@ -514,20 +624,14 @@ public final class GridIndex {
                         continue;
                     }
                     for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
-                        if (!(blockEntity instanceof IChestOrDrive drive)) {
+                        if (!seenPos.add(blockEntity.getBlockPos().asLong())) {
                             continue;
                         }
-                        if (!seenPos.add(BlockPos.asLong(blockEntity.getBlockPos().getX(),
-                                blockEntity.getBlockPos().getY(),
-                                blockEntity.getBlockPos().getZ()))) {
-                            continue;
-                        }
-                        result.add(new DriveRef(drive, true));
+                        consumer.accept(blockEntity);
                     }
                 }
             }
         }
-        return result;
     }
 
     private static void addLinked(appeng.api.parts.IPartHost host, net.minecraft.core.Direction side,
