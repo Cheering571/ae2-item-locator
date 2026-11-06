@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.10
+
+### Fixed
+
+- **Slot frame overhung the bottom of the slot.** The height was measured from the vertical spacing
+  between rows, which is larger than a slot, so the frame grew two pixels too tall while the width
+  was already correct. A slot is square, so the horizontally measured size is reused for the height;
+  the vertical measurement is only used when the icon itself is not square.
+
 ## 1.3.9
 
 ### Fixed

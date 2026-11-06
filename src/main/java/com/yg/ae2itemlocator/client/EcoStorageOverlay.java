@@ -329,14 +329,16 @@ public final class EcoStorageOverlay {
             return;
         }
 
-        // A CellSlot draws its own hover highlight at (0,0) with a 16x16 texture, and the item icon
-        // sits at (0,0) as well, so the slot is anchored at the element origin — not centred on the
-        // icon. The visible slot border is the icon plus one pixel on each side, which also matches
-        // the distance between neighbouring slots.
+        // The slot is square: the horizontal measurement is already correct, so it is reused for the
+        // height. Measuring the vertical spacing separately overshoots, because the grid's row gap is
+        // larger than a slot.
         float iconW = (Float) getSizeWidth.invoke(matched.get(0));
         float iconH = (Float) getSizeHeight.invoke(matched.get(0));
-        float cellW = Math.max(minPitch(xs), iconW + 2f);
-        float cellH = Math.max(minPitch(ys), iconH + 2f);
+        float cellSize = Math.max(minPitch(xs), iconW + 2f);
+        float cellW = cellSize;
+        float cellH = Math.abs(iconW - iconH) <= 1f
+                ? cellSize
+                : Math.max(minPitch(ys), iconH + 2f);
 
         for (Object slot : matched) {
             drawFrame(graphics, slot, originX, originY, cellW, cellH);
