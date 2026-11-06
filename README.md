@@ -108,7 +108,7 @@ combinations have been verified against real mods.
 | **Applied Energistics 2** *(required)* | ME Drive (10 slots), ME Chest | native `IChestOrDrive` / `IMEChest` |
 | **ExtendedAE** | Ex Drive — 20 slots, **both columns**, including the slot outline | `TileExDrive extends DriveBlockEntity` |
 | **MEGA Cells** | Cell Dock, the cable-mounted cell holder | `CellDockPart implements IChestOrDrive` |
-| **Neo ECO AE Extension** | `eco_drive` and its storage subsystem host: link line, host highlight, slot outline inside the controller GUI, page hint | Does not implement `IChestOrDrive`; detected through `getCellStack()` / `getCellInventory()` |
+| **Neo ECO AE Extension** *(1.21.1 branch only)* | `eco_drive` and its storage subsystem host: link line, host highlight, slot outline inside the controller GUI, page hint | Does not implement `IChestOrDrive`; detected through `getCellStack()` / `getCellInventory()`. The probe is still compiled in on 1.20.1 but never matches, because that addon does not exist there |
 | **AE2 Things**, **MEGA Cells** bulk cells, any other cell | Located in whichever drive holds it | The drive is queried per slot, so the cell's origin is irrelevant |
 | **Any other addon** providing a drive | Should work without changes | Implements `IChestOrDrive` |
 
