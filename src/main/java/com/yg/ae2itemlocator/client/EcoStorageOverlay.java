@@ -31,16 +31,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * necessarily contain the paged cell grid. Everything here is reflective to keep the mod buildable
  * without LDLib2 or the addon on the classpath.
  *
- * <p>The drive-to-slot relationship is: {@code StorageCellGrid} creates one {@code CellSlot} per
- * grid position, each holding an int {@code index}; {@code StorageCellGrid.cell(index)} returns
- * {@code StoragePanelState.cells().get(index)} and {@code CellEntry.position()} is the drive's
- * block position. So a slot is identified by asking the grid for the entry at the slot's own index
- * and comparing that position — no page arithmetic involved.
+ * <p>Drive-to-slot relationship: {@code StorageCellGrid} creates one {@code CellSlot} per grid
+ * position, each holding an int {@code index}; {@code StorageCellGrid.cell(index)} returns
+ * {@code StoragePanelState.cells().get(index)} and {@code CellEntry.position()} is the drive's block
+ * position. A slot is therefore identified by asking the grid for the entry at the slot's own index
+ * and comparing that position.
  *
- * <p>Drawing happens from {@code ContainerScreenEvent.Render.Foreground}, which fires at the very
- * end of {@code AbstractContainerScreen#render} — after LDLib2 has painted the panel in
- * {@code renderBg}. {@code ScreenEvent.Render.Post} fires too early there and the frame ends up
- * underneath the GUI.
+ * <p>Drawing happens from {@code ContainerScreenEvent.Render.Foreground}, which fires at the end of
+ * {@code AbstractContainerScreen#render} — after LDLib2 painted the panel in {@code renderBg}.
  */
 public final class EcoStorageOverlay {
 
@@ -48,7 +46,6 @@ public final class EcoStorageOverlay {
             "cn.dancingsnow.neoecoae.gui.storage.StorageCellGrid";
     private static final String SLOT_SUFFIX = "CellSlot";
 
-    private static final int BORDER = 0xFFFFFFFF;
     private static final int HINT = 0xFFFFD54F;
 
     private static boolean resolved;
@@ -67,7 +64,6 @@ public final class EcoStorageOverlay {
     private static Method getLocalToWorldPose;
     private static Method getPositionX;
     private static Method getPositionY;
-    private static Method getParent;
     private static Method getSizeWidth;
     private static Method getSizeHeight;
     private static Field syncField;
@@ -152,11 +148,10 @@ public final class EcoStorageOverlay {
      * the JSON layout wrapped it.
      */
     private static boolean isGrid(Object element) {
-        Class<?> type = element.getClass();
-        if (type.getName().equals(GRID_CLASS)) {
+        if (element.getClass().getName().equals(GRID_CLASS)) {
             return true;
         }
-        if (cellMethod(type) == null) {
+        if (cellMethod(element.getClass()) == null) {
             return false;
         }
         try {
@@ -290,10 +285,12 @@ public final class EcoStorageOverlay {
         }
 
         var seen = new StringBuilder();
+        int slots = 0;
         for (Object child : children) {
             if (child == null || !child.getClass().getName().endsWith(SLOT_SUFFIX)) {
                 continue;
             }
+            slots++;
             int index = slotIndex.getInt(child);
             Object entry = cell.invoke(grid, index);
             if (entry == null) {
@@ -312,55 +309,39 @@ public final class EcoStorageOverlay {
                 if (ref.pos().equals(pos)) {
                     drawFrame(graphics, child, originX, originY);
                     probe("matched index=" + index + " pos=" + pos.toShortString()
-                            + " slots=" + children.size());
+                            + " slots=" + slots);
                     return;
                 }
             }
         }
 
-        probe("no match; slots=" + children.size() + " seen=" + seen);
+        probe("no match; slots=" + slots + " seen=" + seen);
         drawPageHint(graphics, grid, refs, originX, originY);
-    }
-
-    /**
-     * Absolute position of an element inside the GUI, computed the way the layout does it: every
-     * element's position is relative to its parent, so the chain is summed from the slot up to the
-     * root. {@code getLocalToWorldPose()} was tried first and lands a few cells off, either because
-     * its pose cache is stale outside the draw pass or because its origin already equals the
-     * screen's origin.
-     */
-    private static float[] absolutePosition(Object element) throws Exception {
-        float x = 0f;
-        float y = 0f;
-        Object current = element;
-        int guard = 0;
-        while (current != null && guard++ < 64) {
-            x += (Float) getPositionX.invoke(current);
-            y += (Float) getPositionY.invoke(current);
-            current = getParent.invoke(current);
-        }
-        return new float[] { x, y };
     }
 
     private static void drawFrame(GuiGraphics graphics, Object slot, float originX, float originY)
             throws Exception {
-        float[] absolute = absolutePosition(slot);
         float width = (Float) getSizeWidth.invoke(slot);
         float height = (Float) getSizeHeight.invoke(slot);
 
+        // getLocalToWorldPose() already resolves the whole ancestor chain into GUI space. Adding the
+        // ModularUI origin shifted the frame by that origin (1.3.2); summing every ancestor's
+        // position multiplied it and pushed the frame off-screen (1.3.3). The raw pose is correct.
+        Matrix4f pose = (Matrix4f) getLocalToWorldPose.invoke(slot);
         int w = Math.max(2, Math.round(width));
         int h = Math.max(2, Math.round(height));
-        // No UI-origin term: the chain sum is already relative to the screen's GUI origin, which is
-        // exactly the space GuiGraphics is drawing in at this point (the pose is translated by the
-        // container screen's left/top). Adding the ModularUI origin on top shifted the frame by
-        // roughly six cells in the earlier build.
-        int x = Math.round(absolute[0]);
-        int y = Math.round(absolute[1]);
+        int x = Math.round(pose.m30());
+        int y = Math.round(pose.m31());
 
-        Matrix4f pose = (Matrix4f) getLocalToWorldPose.invoke(slot);
+        // Insurance: never draw nothing because a coordinate went absurd.
+        if (Math.abs(x) > 5000 || Math.abs(y) > 5000) {
+            x = Math.round((Float) getPositionX.invoke(slot));
+            y = Math.round((Float) getPositionY.invoke(slot));
+        }
+
         probe("frame x=" + x + " y=" + y + " w=" + w + " h=" + h
-                + " sum=" + Math.round(absolute[0]) + "," + Math.round(absolute[1])
-                + " pose=" + Math.round(pose.m30()) + "," + Math.round(pose.m31())
+                + " slotPos=" + Math.round((Float) getPositionX.invoke(slot)) + ","
+                + Math.round((Float) getPositionY.invoke(slot))
                 + " origin=" + Math.round(originX) + "," + Math.round(originY));
 
         // Same colours and geometry as the drive slot outline, so the configured slot colour
@@ -409,8 +390,8 @@ public final class EcoStorageOverlay {
                 : Component.translatable("gui.ae2itemlocator.page_hint_unknown", pages);
 
         Matrix4f pose = (Matrix4f) getLocalToWorldPose.invoke(grid);
-        int x = Math.round(originX + pose.m30());
-        int y = Math.round(originY + pose.m31() + 2f);
+        int x = Math.round(pose.m30());
+        int y = Math.round(pose.m31() + 2f);
 
         Minecraft minecraft = Minecraft.getInstance();
         graphics.drawString(minecraft.font, text.copy().withStyle(ChatFormatting.YELLOW), x, y, HINT, true);
@@ -467,7 +448,6 @@ public final class EcoStorageOverlay {
             getLocalToWorldPose = element.getMethod("getLocalToWorldPose");
             getPositionX = element.getMethod("getPositionX");
             getPositionY = element.getMethod("getPositionY");
-            getParent = element.getMethod("getParent");
             getSizeWidth = element.getMethod("getSizeWidth");
             getSizeHeight = element.getMethod("getSizeHeight");
 
