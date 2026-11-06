@@ -52,6 +52,8 @@ public final class EcoStorageOverlay {
     private static final Map<Class<?>, Optional<Object>> ACCESSORS = new ConcurrentHashMap<>();
 
     private static Method getAllElements;
+    private static Field uiField;
+    private static Field rootField;
     private static Method getLeftPos;
     private static Method getTopPos;
     private static Method getChildren;
@@ -101,21 +103,65 @@ public final class EcoStorageOverlay {
             GuiGraphics graphics = event.getGuiGraphics();
             List<CellRef> refs = HighlightState.refs();
 
-            int grids = 0;
+            var grids = new java.util.ArrayList<Object>();
+            var seen = java.util.Collections.newSetFromMap(
+                    new java.util.IdentityHashMap<Object, Boolean>());
+
+            int registered = 0;
             for (Object element : elements) {
-                if (element == null || !element.getClass().getName().equals(GRID_CLASS)) {
-                    continue;
+                if (element != null && element.getClass().getName().equals(GRID_CLASS)
+                        && seen.add(element)) {
+                    grids.add(element);
+                    registered++;
                 }
-                grids++;
-                drawForGrid(graphics, element, refs, originX, originY);
             }
-            probe("elements=" + elements.size() + " grids=" + grids
+
+            // getAllElements() only contains elements the ModularUI was told about; walking the
+            // root element as well makes this independent of how the panel was built.
+            int fromTree = 0;
+            Object root = rootElement(ui);
+            if (root != null) {
+                fromTree = collectGrids(root, grids, seen, 0);
+            }
+
+            for (Object grid : grids) {
+                drawForGrid(graphics, grid, refs, originX, originY);
+            }
+            probe("elements=" + elements.size() + " gridsRegistered=" + registered
+                    + " gridsInTree=" + fromTree + " total=" + grids.size()
                     + " origin=" + Math.round(originX) + "," + Math.round(originY)
                     + " refs=" + refs.size() + " refPos=" + describe(refs)
-                    + " uiOrigin=" + ui.getClass().getSimpleName());
+                    + (grids.isEmpty() ? " sample=" + sampleClasses(elements) : ""));
         } catch (Throwable t) {
             probe("render failed: " + t.getClass().getSimpleName() + ": " + t.getMessage());
         }
+    }
+
+    private static Object rootElement(Object modularUI) {
+        try {
+            Object ui = uiField.get(modularUI);
+            return ui == null ? null : rootField.get(ui);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static int collectGrids(Object element, List<Object> out, java.util.Set<Object> seen,
+            int depth) throws Exception {
+        if (element == null || depth > 32 || !seen.add(element)) {
+            return 0;
+        }
+        int found = 0;
+        if (element.getClass().getName().equals(GRID_CLASS)) {
+            out.add(element);
+            found++;
+        }
+        if (getChildren.invoke(element) instanceof List<?> children) {
+            for (Object child : children) {
+                found += collectGrids(child, out, seen, depth + 1);
+            }
+        }
+        return found;
     }
 
     /**
@@ -297,8 +343,22 @@ public final class EcoStorageOverlay {
         graphics.drawString(minecraft.font, text.copy().withStyle(ChatFormatting.YELLOW), x, y, HINT, true);
     }
 
-    private static String describe(List<CellRef> refs) {
-        var out = new StringBuilder();
+    private static String sampleClasses(List<?> elements) {
+        var out = new java.util.LinkedHashSet<String>();
+        for (Object element : elements) {
+            if (element == null) {
+                continue;
+            }
+            String name = element.getClass().getName();
+            out.add(name.substring(name.lastIndexOf('.') + 1));
+            if (out.size() >= 12) {
+                break;
+            }
+        }
+        return String.join("|", out);
+    }
+
+    private static String describe(List<CellRef> refs) {        var out = new StringBuilder();
         for (CellRef ref : refs) {
             if (out.length() > 90) {
                 break;
@@ -324,6 +384,10 @@ public final class EcoStorageOverlay {
             getAllElements = modularUI.getMethod("getAllElements");
             getLeftPos = modularUI.getMethod("getLeftPos");
             getTopPos = modularUI.getMethod("getTopPos");
+            uiField = modularUI.getField("ui");
+
+            Class<?> ui = Class.forName("com.lowdragmc.lowdraglib2.gui.ui.UI");
+            rootField = ui.getField("rootElement");
 
             Class<?> element = Class.forName("com.lowdragmc.lowdraglib2.gui.ui.UIElement");
             getChildren = element.getMethod("getChildren");

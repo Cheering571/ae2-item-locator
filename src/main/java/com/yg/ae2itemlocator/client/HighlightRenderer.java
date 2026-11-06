@@ -1,11 +1,14 @@
 package com.yg.ae2itemlocator.client;
 
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yg.ae2itemlocator.common.CellRef;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -29,9 +32,29 @@ public final class HighlightRenderer {
 
     private static final float SHELL_ALPHA = 0.18f;
     private static final float BEAM_ALPHA = 0.30f;
-    private static final float LINK_HALF = 0.07f;
-    private static final float LINK_ALPHA = 0.55f;
-    private static final float LINK_ARC_HEIGHT = 3.0f;
+    private static final float LINK_HALF = 0.06f;
+    private static final float LINK_ALPHA = 0.85f;
+    private static final float GHOST_ALPHA = 0.22f;
+
+    /**
+     * Quads that ignore the depth buffer, so the link beam and the controller box stay visible
+     * through the multiblock casing. {@code NO_DEPTH_TEST} plus {@code COLOR_WRITE} keeps them from
+     * touching the depth buffer at all, which also stops them from hiding anything behind them.
+     */
+    private static final RenderType THROUGH_WALLS = RenderType.create(
+            "ae2itemlocator_through_walls",
+            DefaultVertexFormat.POSITION_COLOR,
+            VertexFormat.Mode.QUADS,
+            1536,
+            false,
+            true,
+            RenderType.CompositeState.builder()
+                    .setShaderState(RenderStateShard.POSITION_COLOR_SHADER)
+                    .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
+                    .setCullState(RenderStateShard.NO_CULL)
+                    .setDepthTestState(RenderStateShard.NO_DEPTH_TEST)
+                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                    .createCompositeState(false));
 
     public static void onRenderLevel(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
@@ -108,29 +131,24 @@ public final class HighlightRenderer {
                 }
             }
 
-            // Multiblock controllers: the drive and its controller usually sit inside the same
-            // structure, so a straight segment would be buried in it. Route the link over the top
-            // instead: up, across, down.
-            VertexConsumer linkQuads = buffers.getBuffer(RenderType.debugQuads());
-            boolean drewLink = false;
+            // Multiblock link: one straight beam from the drive to its controller, drawn through
+            // walls, plus a shell on the controller itself so the host block is marked too.
+            VertexConsumer ghost = buffers.getBuffer(THROUGH_WALLS);
+            boolean drewGhost = false;
             for (CellRef ref : HighlightState.refs()) {
-                if (ref.link() != null && ref.dimension().equals(level.dimension())) {
-                    float x1 = ref.pos().getX() + 0.5f;
-                    float z1 = ref.pos().getZ() + 0.5f;
-                    float x2 = ref.link().getX() + 0.5f;
-                    float z2 = ref.link().getZ() + 0.5f;
-                    float y1 = ref.pos().getY() + 1.0f;
-                    float y2 = ref.link().getY() + 1.0f;
-                    float arc = Math.max(y1, y2) + LINK_ARC_HEIGHT;
-
-                    tube(pose, linkQuads, x1, y1, z1, x1, arc, z1, LINK_HALF, LINK_ALPHA, dr, dg, db);
-                    tube(pose, linkQuads, x1, arc, z1, x2, arc, z2, LINK_HALF, LINK_ALPHA, dr, dg, db);
-                    tube(pose, linkQuads, x2, arc, z2, x2, y2, z2, LINK_HALF, LINK_ALPHA, dr, dg, db);
-                    drewLink = true;
+                if (ref.link() == null || !ref.dimension().equals(level.dimension())) {
+                    continue;
                 }
+                shell(pose, ghost, ref.link(), dr, dg, db, GHOST_ALPHA);
+                tube(pose, ghost,
+                        ref.pos().getX() + 0.5f, ref.pos().getY() + 0.5f, ref.pos().getZ() + 0.5f,
+                        ref.link().getX() + 0.5f, ref.link().getY() + 0.5f,
+                        ref.link().getZ() + 0.5f,
+                        LINK_HALF, LINK_ALPHA, dr, dg, db);
+                drewGhost = true;
             }
-            if (drewLink) {
-                buffers.endBatch(RenderType.debugQuads());
+            if (drewGhost) {
+                buffers.endBatch(THROUGH_WALLS);
             }
         } finally {
             pose.popPose();
@@ -160,6 +178,11 @@ public final class HighlightRenderer {
     /** Six translucent faces, slightly inflated so they do not z-fight with the drive block. */
     private static void shell(PoseStack pose, VertexConsumer consumer, BlockPos pos,
             float r, float g, float b) {
+        shell(pose, consumer, pos, r, g, b, SHELL_ALPHA);
+    }
+
+    private static void shell(PoseStack pose, VertexConsumer consumer, BlockPos pos,
+            float r, float g, float b, float alpha) {
         float x1 = pos.getX() - 0.005f;
         float y1 = pos.getY() - 0.005f;
         float z1 = pos.getZ() - 0.005f;
@@ -167,12 +190,12 @@ public final class HighlightRenderer {
         float y2 = pos.getY() + 1.005f;
         float z2 = pos.getZ() + 1.005f;
 
-        quad(pose, consumer, x1, y1, z1, x2, y1, z1, x2, y1, z2, x1, y1, z2, SHELL_ALPHA, r, g, b); // -Y
-        quad(pose, consumer, x1, y2, z1, x1, y2, z2, x2, y2, z2, x2, y2, z1, SHELL_ALPHA, r, g, b); // +Y
-        quad(pose, consumer, x1, y1, z1, x1, y2, z1, x2, y2, z1, x2, y1, z1, SHELL_ALPHA, r, g, b); // -Z
-        quad(pose, consumer, x1, y1, z2, x2, y1, z2, x2, y2, z2, x1, y2, z2, SHELL_ALPHA, r, g, b); // +Z
-        quad(pose, consumer, x1, y1, z1, x1, y1, z2, x1, y2, z2, x1, y2, z1, SHELL_ALPHA, r, g, b); // -X
-        quad(pose, consumer, x2, y1, z1, x2, y2, z1, x2, y2, z2, x2, y1, z2, SHELL_ALPHA, r, g, b); // +X
+        quad(pose, consumer, x1, y1, z1, x2, y1, z1, x2, y1, z2, x1, y1, z2, alpha, r, g, b); // -Y
+        quad(pose, consumer, x1, y2, z1, x1, y2, z2, x2, y2, z2, x2, y2, z1, alpha, r, g, b); // +Y
+        quad(pose, consumer, x1, y1, z1, x1, y2, z1, x2, y2, z1, x2, y1, z1, alpha, r, g, b); // -Z
+        quad(pose, consumer, x1, y1, z2, x2, y1, z2, x2, y2, z2, x1, y2, z2, alpha, r, g, b); // +Z
+        quad(pose, consumer, x1, y1, z1, x1, y1, z2, x1, y2, z2, x1, y2, z1, alpha, r, g, b); // -X
+        quad(pose, consumer, x2, y1, z1, x2, y2, z1, x2, y2, z2, x2, y1, z2, alpha, r, g, b); // +X
     }
 
     private static void beam(PoseStack pose, VertexConsumer consumer, BlockPos pos, Level level,

@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.3.0
+
+### Changed
+
+- **Link is a straight beam that ignores the depth buffer.** Routing it over the structure was a
+  workaround for occlusion; the geometry now uses a dedicated render type built on
+  `RenderStateShard.NO_DEPTH_TEST` + `COLOR_WRITE`, so the line pierces the multiblock casing
+  instead of detouring around it. It is also thicker and near-opaque.
+- **The controller block is highlighted too**, with the same through-wall shell, so both ends of
+  the link are marked.
+
+### Fixed
+
+- **Controller GUI slot outline, third attempt.** `getAllElements()` only returns elements the
+  `ModularUI` was told about, and this panel is built from a JSON layout, so the cell grid was never
+  in that list. The overlay now walks the element tree from `UI.rootElement` in addition to the
+  registry, and deduplicates by identity. When no grid is found it logs the element classes it did
+  see.
+
 ## 1.2.2
 
 ### Fixed
