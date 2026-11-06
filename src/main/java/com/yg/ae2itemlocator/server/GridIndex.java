@@ -369,7 +369,8 @@ public final class GridIndex {
         }
 
         CellRef cellRef = new CellRef(level.dimension(), blockEntity.getBlockPos(), CellRef.NO_SLOT,
-                CellHostProbe.cellLabel(blockEntity), host.subnet());
+                CellHostProbe.cellLabel(blockEntity), host.subnet(),
+                CellHostProbe.controllerPos(blockEntity), CellHostProbe.hostSlot(blockEntity));
         for (AEKey key : counter.keySet()) {
             byKey.computeIfAbsent(key, ignored -> new ArrayList<>(2)).add(cellRef);
         }
@@ -419,7 +420,7 @@ public final class GridIndex {
 
         ResourceKey<Level> dimension = level.dimension();
         BlockPos pos = blockEntity.getBlockPos();
-        CellRef cellRef = new CellRef(dimension, pos, slot, cellType, ref.subnet());
+        CellRef cellRef = CellRef.of(dimension, pos, slot, cellType, ref.subnet());
 
         for (AEKey key : counter.keySet()) {
             byKey.computeIfAbsent(key, ignored -> new ArrayList<>(2)).add(cellRef);

@@ -16,6 +16,8 @@
   "gui.ae2itemlocator.hud_position": "调整提示文字位置",
   "gui.ae2itemlocator.hud_hint": "拖动文字块调整位置，然后点确认",
   "gui.ae2itemlocator.hud_sample": "高亮中：圆石（1 处）",
+  "gui.ae2itemlocator.page_hint": "目标在第 %s 页（共 %s 页）",
+  "gui.ae2itemlocator.page_hint_unknown": "目标不在当前页（共 %s 页）",
   "gui.ae2itemlocator.done": "完成",
   "gui.ae2itemlocator.confirm": "确认",
   "gui.ae2itemlocator.cancel": "取消",

@@ -4,7 +4,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class Network {
-    public static final String VERSION = "3";
+    public static final String VERSION = "4";
 
     public static void register(RegisterPayloadHandlersEvent event) {
         // "optional" keeps one-sided installs from disconnecting: a client without the mod just

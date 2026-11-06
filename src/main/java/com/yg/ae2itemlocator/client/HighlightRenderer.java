@@ -29,6 +29,8 @@ public final class HighlightRenderer {
 
     private static final float SHELL_ALPHA = 0.18f;
     private static final float BEAM_ALPHA = 0.30f;
+    private static final float LINK_HALF = 0.055f;
+    private static final float LINK_ALPHA = 0.42f;
 
     public static void onRenderLevel(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
@@ -103,6 +105,22 @@ public final class HighlightRenderer {
                     buffers.endBatch(RenderType.debugQuads());
                 }
             }
+
+            // Multiblock controllers: a thin tube from the drive to the controller it belongs to.
+            VertexConsumer linkQuads = buffers.getBuffer(RenderType.debugQuads());
+            boolean drewLink = false;
+            for (CellRef ref : HighlightState.refs()) {
+                if (ref.link() != null && ref.dimension().equals(level.dimension())) {
+                    tube(pose, linkQuads,
+                            ref.pos().getX() + 0.5f, ref.pos().getY() + 0.5f, ref.pos().getZ() + 0.5f,
+                            ref.link().getX() + 0.5f, ref.link().getY() + 0.5f, ref.link().getZ() + 0.5f,
+                            LINK_HALF, LINK_ALPHA, dr, dg, db);
+                    drewLink = true;
+                }
+            }
+            if (drewLink) {
+                buffers.endBatch(RenderType.debugQuads());
+            }
         } finally {
             pose.popPose();
         }
@@ -154,6 +172,79 @@ public final class HighlightRenderer {
                 centerX - half, bottom, centerZ - half,
                 centerX - half, top, centerZ - half,
                 centerX - half, top, centerZ + half, BEAM_ALPHA, r, g, b);
+    }
+
+    /**
+     * A thin square tube from the drive to its multiblock controller. View-independent (four side
+     * faces), so it reads as a beam from any angle without billboarding.
+     */
+    private static void tube(PoseStack pose, VertexConsumer consumer,
+            float x1, float y1, float z1,
+            float x2, float y2, float z2,
+            float half, float alpha, float r, float g, float b) {
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float dz = z2 - z1;
+        float length = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (length < 0.001f) {
+            return;
+        }
+        dx /= length;
+        dy /= length;
+        dz /= length;
+
+        // Reference axis that is never parallel to the direction.
+        float ux = 0f;
+        float uy = 0f;
+        float uz = 1f;
+        if (Math.abs(dz) > 0.99f) {
+            ux = 1f;
+            uz = 0f;
+        }
+
+        // a = dir x ref, b = dir x a  -> two orthogonal offsets spanning the tube cross-section.
+        float ax = dy * uz - dz * uy;
+        float ay = dz * ux - dx * uz;
+        float az = dx * uy - dy * ux;
+        float al = (float) Math.sqrt(ax * ax + ay * ay + az * az);
+        if (al < 1.0e-5f) {
+            return;
+        }
+        ax /= al;
+        ay /= al;
+        az /= al;
+
+        float bx = dy * az - dz * ay;
+        float by = dz * ax - dx * az;
+        float bz = dx * ay - dy * ax;
+
+        float ahx = ax * half;
+        float ahy = ay * half;
+        float ahz = az * half;
+        float bhx = bx * half;
+        float bhy = by * half;
+        float bhz = bz * half;
+
+        quad(pose, consumer,
+                x1 + ahx + bhx, y1 + ahy + bhy, z1 + ahz + bhz,
+                x1 + ahx - bhx, y1 + ahy - bhy, z1 + ahz - bhz,
+                x2 + ahx - bhx, y2 + ahy - bhy, z2 + ahz - bhz,
+                x2 + ahx + bhx, y2 + ahy + bhy, z2 + ahz + bhz, alpha, r, g, b);
+        quad(pose, consumer,
+                x1 - ahx - bhx, y1 - ahy - bhy, z1 - ahz - bhz,
+                x1 - ahx + bhx, y1 - ahy + bhy, z1 - ahz + bhz,
+                x2 - ahx + bhx, y2 - ahy + bhy, z2 - ahz + bhz,
+                x2 - ahx - bhx, y2 - ahy - bhy, z2 - ahz - bhz, alpha, r, g, b);
+        quad(pose, consumer,
+                x1 + ahx - bhx, y1 + ahy - bhy, z1 + ahz - bhz,
+                x1 - ahx - bhx, y1 - ahy - bhy, z1 - ahz - bhz,
+                x2 - ahx - bhx, y2 - ahy - bhy, z2 - ahz - bhz,
+                x2 + ahx - bhx, y2 + ahy - bhy, z2 + ahz - bhz, alpha, r, g, b);
+        quad(pose, consumer,
+                x1 - ahx + bhx, y1 - ahy + bhy, z1 - ahz + bhz,
+                x1 + ahx + bhx, y1 + ahy + bhy, z1 + ahz + bhz,
+                x2 + ahx + bhx, y2 + ahy + bhy, z2 + ahz + bhz,
+                x2 - ahx + bhx, y2 - ahy + bhy, z2 - ahz + bhz, alpha, r, g, b);
     }
 
     private static void quad(PoseStack pose,

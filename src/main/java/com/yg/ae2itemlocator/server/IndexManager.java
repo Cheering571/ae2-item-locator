@@ -202,7 +202,7 @@ public final class IndexManager {
                 // cosmetic only
             }
 
-            var cellRef = new com.yg.ae2itemlocator.common.CellRef(
+            var cellRef = com.yg.ae2itemlocator.common.CellRef.of(
                     level.dimension(), blockEntity.getBlockPos(), slot, cellType, ref.subnet());
             out.add(cellRef);
             detail.append('(').append(cellRef.pos().getX()).append(',')
@@ -247,7 +247,8 @@ public final class IndexManager {
 
         var cellRef = new com.yg.ae2itemlocator.common.CellRef(level.dimension(),
                 blockEntity.getBlockPos(), com.yg.ae2itemlocator.common.CellRef.NO_SLOT,
-                CellHostProbe.cellLabel(blockEntity), host.subnet());
+                CellHostProbe.cellLabel(blockEntity), host.subnet(),
+                CellHostProbe.controllerPos(blockEntity), CellHostProbe.hostSlot(blockEntity));
         out.add(cellRef);
         detail.append('(').append(cellRef.pos().getX()).append(',')
                 .append(cellRef.pos().getY()).append(',')

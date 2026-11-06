@@ -2,6 +2,7 @@ package com.yg.ae2itemlocator.server;
 
 import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.MEStorage;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -19,17 +20,19 @@ import java.util.concurrent.ConcurrentHashMap;
  * Because the drive never reports a cell count or a per-slot inventory, a plain
  * {@code IChestOrDrive} walk cannot see it at all.
  *
+ * <p>The same block is part of a multiblock, and the controller exposes the ordered list of its
+ * drives; both pieces are probed here so the world highlight can draw a link line and the
+ * controller GUI can work out which page a drive sits on.
+ *
  * <p>The probe is reflective on purpose: linking against the addon would put it on this mod's
- * compile classpath and make the repository unbuildable without that jar. The shape being matched
- * is the small {@code getCellStack()} / {@code getCellInventory()} contract that addon cell hosts
- * share.
+ * compile classpath and make the repository unbuildable without that jar.
  */
 public final class CellHostProbe {
 
-    /** Cached method pairs per class: {@code [inventoryMethod, stackMethod]}, either may be null. */
+    /** Cached per class: {@code [inventoryMethod, stackMethod, controllerMethod]}, entries may be null. */
     private static final Map<Class<?>, Method[]> METHODS = new ConcurrentHashMap<>();
 
-    private static final Method[] NONE = new Method[2];
+    private static final Method[] NONE = new Method[3];
 
     /**
      * @return the cell storage of this block entity, or {@code null} when it holds no cell or does
@@ -73,6 +76,57 @@ public final class CellHostProbe {
         return blockEntity instanceof IStorageProvider && lookup(blockEntity.getClass())[0] != null;
     }
 
+    /**
+     * @return position of the multiblock controller this cell host belongs to, or {@code null} when
+     *         it is not part of one.
+     */
+    public static BlockPos controllerPos(BlockEntity blockEntity) {
+        Method controller = lookup(blockEntity.getClass())[2];
+        if (controller == null) {
+            return null;
+        }
+        try {
+            if (controller.invoke(blockEntity) instanceof BlockEntity control
+                    && control.getLevel() != null && !control.isRemoved()) {
+                return control.getBlockPos();
+            }
+        } catch (Throwable ignored) {
+            // optional integration only
+        }
+        return null;
+    }
+
+    /**
+     * @return index of this drive inside its controller's cell list, or {@code -1} when unknown.
+     *         The controller GUI lists drives in this order, so the client can turn the index into
+     *         a page number.
+     */
+    public static int hostSlot(BlockEntity blockEntity) {
+        Method controllerMethod = lookup(blockEntity.getClass())[2];
+        if (controllerMethod == null) {
+            return -1;
+        }
+        try {
+            if (!(controllerMethod.invoke(blockEntity) instanceof BlockEntity controller)) {
+                return -1;
+            }
+            Method drives = drivesMethod(controller.getClass());
+            if (drives == null) {
+                return -1;
+            }
+            if (drives.invoke(controller) instanceof java.util.List<?> list) {
+                for (int i = 0; i < list.size(); i++) {
+                    if (list.get(i) == blockEntity) {
+                        return i;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+            // optional integration only
+        }
+        return -1;
+    }
+
     private static Method[] lookup(Class<?> type) {
         Method[] cached = METHODS.get(type);
         if (cached != null) {
@@ -81,28 +135,49 @@ public final class CellHostProbe {
 
         Method inventory = null;
         Method stack = null;
+        Method controller = null;
         try {
-            inventory = type.getMethod("getCellInventory");
-            if (!MEStorage.class.isAssignableFrom(inventory.getReturnType())) {
-                inventory = null;
+            Method candidate = type.getMethod("getCellInventory");
+            if (MEStorage.class.isAssignableFrom(candidate.getReturnType())) {
+                inventory = candidate;
             }
         } catch (Throwable ignored) {
             inventory = null;
         }
         if (inventory != null) {
             try {
-                stack = type.getMethod("getCellStack");
-                if (stack.getReturnType() != ItemStack.class) {
-                    stack = null;
+                Method candidate = type.getMethod("getCellStack");
+                if (candidate.getReturnType() == ItemStack.class) {
+                    stack = candidate;
                 }
             } catch (Throwable ignored) {
                 stack = null;
             }
+            try {
+                Method candidate = type.getMethod("getStorageController");
+                if (BlockEntity.class.isAssignableFrom(candidate.getReturnType())) {
+                    controller = candidate;
+                }
+            } catch (Throwable ignored) {
+                controller = null;
+            }
         }
 
-        Method[] result = inventory == null ? NONE : new Method[] { inventory, stack };
+        Method[] result = inventory == null ? NONE : new Method[] { inventory, stack, controller };
         METHODS.put(type, result);
         return result;
+    }
+
+    private static Method drivesMethod(Class<?> type) {
+        try {
+            Method candidate = type.getMethod("getStorageUiDrives");
+            if (java.util.List.class.isAssignableFrom(candidate.getReturnType())) {
+                return candidate;
+            }
+        } catch (Throwable ignored) {
+            // optional integration only
+        }
+        return null;
     }
 
     private CellHostProbe() {

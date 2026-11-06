@@ -16,6 +16,8 @@
   "gui.ae2itemlocator.hud_position": "Adjust status text position",
   "gui.ae2itemlocator.hud_hint": "Drag the text block to move it, then press Confirm",
   "gui.ae2itemlocator.hud_sample": "Locked: Cobblestone (1)",
+  "gui.ae2itemlocator.page_hint": "Target is on page %s of %s",
+  "gui.ae2itemlocator.page_hint_unknown": "Target is not on this page (%s pages)",
   "gui.ae2itemlocator.done": "Done",
   "gui.ae2itemlocator.confirm": "Confirm",
   "gui.ae2itemlocator.cancel": "Cancel",

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+
+- **Multiblock link line.** When a located drive belongs to a multiblock controller (Neo ECO AE's
+  `eco_drive` + storage subsystem host), a thin beam is drawn from the drive to the controller, in
+  the same colour as the drive highlight.
+- **Slot outline inside the controller GUI.** The ECO storage host lists its drives in a paged
+  grid; the slot holding the locked item is now outlined there, which is the only place those cells
+  can actually be taken out.
+- **Page hint.** When the target drive sits on another page of that grid, the GUI says which page
+  it is on instead of highlighting the wrong slot.
+
+### Notes
+
+- Both features are purely reflective, so nothing extra is needed at build time and the mod keeps
+  working when the addon is absent.
+- The controller GUI is an LDLib2 `ModularUI`, not a vanilla container screen, so it needed its own
+  render hook rather than the existing slot outline.
+
 ## 1.1.0
 
 ### Added

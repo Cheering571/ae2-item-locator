@@ -31,6 +31,7 @@ public final class ClientSetup {
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTick);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onRenderGui);
         NeoForge.EVENT_BUS.addListener(HighlightRenderer::onRenderLevel);
+        NeoForge.EVENT_BUS.addListener(EcoStorageOverlay::onRenderScreen);
     }
 
     private static void registerKeys(RegisterKeyMappingsEvent event) {

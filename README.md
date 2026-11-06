@@ -26,6 +26,7 @@ across the base, even in another dimension.
 | **Subnetwork aware** | Storage-bus bridges are followed; results coming from a subnet are labelled as such. |
 | **Drive-agnostic** | Anything implementing AE2's `IChestOrDrive` works, including addon drives with custom slot layouts — plus single-cell storage blocks such as Neo ECO AE's storage matrix drives. |
 | **Colours & HUD position** | Fully configurable in an in-game screen; the status text can be dragged anywhere. |
+| **Multiblock aware** | Drives that belong to a controller (Neo ECO AE's storage subsystem host) get a link line to that controller, and their cell is outlined inside the controller's own GUI. |
 
 ## Screenshots
 
@@ -160,7 +161,7 @@ The client only ever receives "which drives hold *this* key", never the whole in
   next to yours and happens to contain the same item. It is labelled as a subnet result.
 - **Single-cell storage blocks** (Neo ECO AE storage matrix drives) have no slot, so the tooltip
   shows the block coordinates and the cell's name instead of a slot number, and the drive-GUI slot
-  outline does not apply to them.
+  outline does not apply to them — the outline appears in the controller's GUI instead.
 
 ## Building from source
 
