@@ -32,6 +32,7 @@ public final class ClientSetup {
         NeoForge.EVENT_BUS.addListener(ClientSetup::onRenderGui);
         NeoForge.EVENT_BUS.addListener(HighlightRenderer::onRenderLevel);
         NeoForge.EVENT_BUS.addListener(EcoStorageOverlay::onRenderScreen);
+        NeoForge.EVENT_BUS.addListener(EcoStorageOverlay::onContainerForeground);
     }
 
     private static void registerKeys(RegisterKeyMappingsEvent event) {
@@ -68,6 +69,8 @@ public final class ClientSetup {
             HighlightState.clear();
             ClientIndexState.clearHover();
         }
+
+        LinkParticles.tick();
 
         if (minecraft.screen == null) {
             while (Keybinds.LOCK.consumeClick()) {

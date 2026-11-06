@@ -69,12 +69,25 @@ public final class EcoStorageOverlay {
     private static Method entryPosition;
 
     public static void onRenderScreen(ScreenEvent.Render.Post event) {
+        Screen screen = event.getScreen();
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen) {
+            // Container screens fire ContainerScreenEvent.Render.Foreground *after* the LDLib2
+            // panel has been drawn; drawing here would put the overlay underneath it.
+            return;
+        }
+        render(screen, event.getGuiGraphics());
+    }
+
+    public static void onContainerForeground(
+            net.neoforged.neoforge.client.event.ContainerScreenEvent.Render.Foreground event) {
+        render(event.getContainerScreen(), event.getGuiGraphics());
+    }
+
+    private static void render(Screen screen, GuiGraphics graphics) {
         if (!HighlightState.isLocked() || !HighlightState.hasRefs()) {
             return;
         }
-
-        Screen screen = event.getScreen();
-        if (screen == null) {
+        if (screen == null || graphics == null) {
             return;
         }
 
@@ -100,7 +113,6 @@ public final class EcoStorageOverlay {
             float originX = (Float) getLeftPos.invoke(ui);
             float originY = (Float) getTopPos.invoke(ui);
 
-            GuiGraphics graphics = event.getGuiGraphics();
             List<CellRef> refs = HighlightState.refs();
 
             var grids = new java.util.ArrayList<Object>();
@@ -291,6 +303,10 @@ public final class EcoStorageOverlay {
         int y = Math.round(originY + pose.m31());
         int w = Math.max(2, Math.round(width));
         int h = Math.max(2, Math.round(height));
+
+        probe("frame x=" + x + " y=" + y + " w=" + w + " h=" + h
+                + " uiOrigin=" + Math.round(originX) + "," + Math.round(originY)
+                + " elementPose=" + Math.round(pose.m30()) + "," + Math.round(pose.m31()));
 
         graphics.fill(x, y, x + w, y + 1, BORDER);
         graphics.fill(x, y + h - 1, x + w, y + h, BORDER);

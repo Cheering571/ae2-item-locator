@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.3.1
+
+### Changed
+
+- **The link is drawn with vanilla dust particles** in the highlight colour instead of own geometry.
+  They read as a connection rather than as part of the drive, need no custom render type, and are
+  visible through the casing.
+- **The controller now looks exactly like a drive**: translucent shell plus a bright edge outline.
+  The edges are built from thin tubes instead of GL lines so their thickness does not depend on the
+  driver.
+
+### Fixed
+
+- **Slot outline was drawn too early.** `ScreenEvent.Render.Post` fires before the LDLib2 panel is
+  painted for container screens, so anything drawn there ended up underneath the GUI. The overlay
+  now hooks `ContainerScreenEvent.Render.Foreground`, which fires at the very end of
+  `AbstractContainerScreen#render`; `ScreenEvent.Render.Post` is kept only for non-container
+  screens.
+- The drawn rectangle is logged (`frame x= y= w= h=`), so a wrong offset is a one-line fix instead
+  of another guessing round.
+
 ## 1.3.0
 
 ### Changed

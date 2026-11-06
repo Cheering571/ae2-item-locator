@@ -32,9 +32,9 @@ public final class HighlightRenderer {
 
     private static final float SHELL_ALPHA = 0.18f;
     private static final float BEAM_ALPHA = 0.30f;
-    private static final float LINK_HALF = 0.06f;
-    private static final float LINK_ALPHA = 0.85f;
-    private static final float GHOST_ALPHA = 0.22f;
+    private static final float HOST_SHELL_ALPHA = 0.18f;
+    private static final float HOST_EDGE_HALF = 0.014f;
+    private static final float HOST_EDGE_ALPHA = 0.85f;
 
     /**
      * Quads that ignore the depth buffer, so the link beam and the controller box stay visible
@@ -131,20 +131,16 @@ public final class HighlightRenderer {
                 }
             }
 
-            // Multiblock link: one straight beam from the drive to its controller, drawn through
-            // walls, plus a shell on the controller itself so the host block is marked too.
+            // Multiblock controller: same treatment as a drive (translucent shell plus a bright
+            // edge), drawn through walls because it normally sits inside the casing.
             VertexConsumer ghost = buffers.getBuffer(THROUGH_WALLS);
             boolean drewGhost = false;
             for (CellRef ref : HighlightState.refs()) {
                 if (ref.link() == null || !ref.dimension().equals(level.dimension())) {
                     continue;
                 }
-                shell(pose, ghost, ref.link(), dr, dg, db, GHOST_ALPHA);
-                tube(pose, ghost,
-                        ref.pos().getX() + 0.5f, ref.pos().getY() + 0.5f, ref.pos().getZ() + 0.5f,
-                        ref.link().getX() + 0.5f, ref.link().getY() + 0.5f,
-                        ref.link().getZ() + 0.5f,
-                        LINK_HALF, LINK_ALPHA, dr, dg, db);
+                shell(pose, ghost, ref.link(), dr, dg, db, HOST_SHELL_ALPHA);
+                wireBox(pose, ghost, ref.link(), HOST_EDGE_HALF, HOST_EDGE_ALPHA, dr, dg, db);
                 drewGhost = true;
             }
             if (drewGhost) {
@@ -226,6 +222,36 @@ public final class HighlightRenderer {
                 centerX - half, bottom, centerZ - half,
                 centerX - half, top, centerZ - half,
                 centerX - half, top, centerZ + half, BEAM_ALPHA, r, g, b);
+    }
+
+    /**
+     * The twelve edges of a block as thin tubes, so the outline is visible from any angle without
+     * relying on GL line width. Used for the controller, which is drawn through walls.
+     */
+    private static void wireBox(PoseStack pose, VertexConsumer consumer, BlockPos pos,
+            float half, float alpha, float r, float g, float b) {
+        float x1 = pos.getX();
+        float y1 = pos.getY();
+        float z1 = pos.getZ();
+        float x2 = x1 + 1f;
+        float y2 = y1 + 1f;
+        float z2 = z1 + 1f;
+
+        // bottom rectangle
+        tube(pose, consumer, x1, y1, z1, x2, y1, z1, half, alpha, r, g, b);
+        tube(pose, consumer, x2, y1, z1, x2, y1, z2, half, alpha, r, g, b);
+        tube(pose, consumer, x2, y1, z2, x1, y1, z2, half, alpha, r, g, b);
+        tube(pose, consumer, x1, y1, z2, x1, y1, z1, half, alpha, r, g, b);
+        // top rectangle
+        tube(pose, consumer, x1, y2, z1, x2, y2, z1, half, alpha, r, g, b);
+        tube(pose, consumer, x2, y2, z1, x2, y2, z2, half, alpha, r, g, b);
+        tube(pose, consumer, x2, y2, z2, x1, y2, z2, half, alpha, r, g, b);
+        tube(pose, consumer, x1, y2, z2, x1, y2, z1, half, alpha, r, g, b);
+        // verticals
+        tube(pose, consumer, x1, y1, z1, x1, y2, z1, half, alpha, r, g, b);
+        tube(pose, consumer, x2, y1, z1, x2, y2, z1, half, alpha, r, g, b);
+        tube(pose, consumer, x2, y1, z2, x2, y2, z2, half, alpha, r, g, b);
+        tube(pose, consumer, x1, y1, z2, x1, y2, z2, half, alpha, r, g, b);
     }
 
     /**
