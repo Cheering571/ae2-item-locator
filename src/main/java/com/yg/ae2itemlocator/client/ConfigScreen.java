@@ -112,6 +112,9 @@ public final class ConfigScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        // Screen#render does not paint the backdrop on 1.20.1 (only container screens do), so the
+        // dim layer and the panel below would never be drawn without this explicit call.
+        this.renderBackground(graphics);
         super.render(graphics, mouseX, mouseY, partialTick);
         if (minecraft == null) {
             return;
