@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.8
+
+### Fixed
+
+- **Slot frame size, properly this time.** A `CellSlot` reports only its 16x16 icon area, and the
+  gap between two slots equals the icon pitch, so both were smaller than the slot graphic drawn
+  around it. The cell size now comes from the grid itself — `gridWidth / columns` and
+  `gridHeight / rows` — with the position pitch and finally `icon + 4` as fallbacks. The frame is
+  centred on the icon, so it covers the whole slot.
+
 ## 1.3.7
 
 ### Fixed

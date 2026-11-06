@@ -74,6 +74,7 @@ public final class EcoStorageOverlay {
     private static Method panelOffset;
     private static Method panelCount;
     private static Field slotIndex;
+    private static Field columnsField;
     private static Method entryPosition;
 
     public static void onRenderScreen(ScreenEvent.Render.Post event) {
@@ -328,15 +329,53 @@ public final class EcoStorageOverlay {
             return;
         }
 
-        // The element is only the icon area (16px); a grid cell is one pitch wide. Derive the pitch
-        // from the neighbouring slots so the frame covers the slot, not the icon.
-        float pitchX = minPitch(xs);
-        float pitchY = minPitch(ys);
-        for (Object slot : matched) {
-            drawFrame(graphics, slot, originX, originY, pitchX, pitchY);
+        // A CellSlot reports the 16x16 icon area, but the slot graphic around it is bigger. The
+        // real cell size comes from the grid itself: its width divided by its column count. The
+        // slot positions are only used as a fallback, and for the row count.
+        int columns = columnsOf(grid);
+        float gridW = (Float) getSizeWidth.invoke(grid);
+        float gridH = (Float) getSizeHeight.invoke(grid);
+        float iconW = (Float) getSizeWidth.invoke(matched.get(0));
+        float iconH = (Float) getSizeHeight.invoke(matched.get(0));
+
+        float cellW = columns > 0 ? gridW / columns : 0f;
+        float cellH = 0f;
+        if (columns > 0 && slots > 0) {
+            int rows = (slots + columns - 1) / columns;
+            cellH = rows > 0 ? gridH / rows : 0f;
         }
-        probe("matched n=" + matched.size() + " of slots=" + slots
-                + " pitch=" + Math.round(pitchX) + "x" + Math.round(pitchY));
+
+        // Sanity: the grid must not be much smaller than an icon or several times larger.
+        if (cellW < iconW * 0.9f || cellW > iconW * 3f) {
+            cellW = minPitch(xs);
+        }
+        if (cellH < iconH * 0.9f || cellH > iconH * 3f) {
+            cellH = minPitch(ys);
+        }
+        if (cellW <= 0f) {
+            cellW = iconW + 4f;
+        }
+        if (cellH <= 0f) {
+            cellH = iconH + 4f;
+        }
+
+        for (Object slot : matched) {
+            drawFrame(graphics, slot, originX, originY, cellW, cellH);
+        }
+        probe("matched n=" + matched.size() + " of slots=" + slots + " cols=" + columns
+                + " grid=" + Math.round(gridW) + "x" + Math.round(gridH)
+                + " cell=" + Math.round(cellW) + "x" + Math.round(cellH)
+                + " icon=" + Math.round(iconW) + "x" + Math.round(iconH)
+                + " pitch=" + Math.round(minPitch(xs)) + "x" + Math.round(minPitch(ys)));
+    }
+
+    /** Column count of the cell grid, used to turn the grid size into a cell size. */
+    private static int columnsOf(Object grid) {
+        try {
+            return columnsField.getInt(grid);
+        } catch (Throwable t) {
+            return -1;
+        }
     }
 
     /** Smallest positive gap between distinct coordinates; 0 when there is nothing to measure. */
@@ -500,13 +539,20 @@ public final class EcoStorageOverlay {
             Class<?> entry = Class.forName("cn.dancingsnow.neoecoae.gui.storage.StorageHostUI$CellEntry");
             entryPosition = entry.getMethod("position");
 
+            try {
+                Field columns = Class.forName(GRID_CLASS).getDeclaredField("columns");
+                columns.setAccessible(true);
+                columnsField = columns;
+            } catch (Throwable ignored) {
+                columnsField = null;
+            }
+
             // Optional: only used for the page hint.
             try {
                 Class<?> grid = Class.forName(GRID_CLASS);
                 Field field = grid.getDeclaredField("sync");
                 field.setAccessible(true);
                 syncField = field;
-
                 Class<?> sync = Class.forName("cn.dancingsnow.neoecoae.gui.storage.StoragePanelSync");
                 panelState = sync.getDeclaredMethod("state");
                 panelState.setAccessible(true);
