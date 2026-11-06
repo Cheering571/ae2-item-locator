@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.3.2
+
+### Changed
+
+- **Particles are gone.** Vanilla particles are drawn depth-tested, so they cannot pierce the
+  multiblock casing — the whole point of the link. The straight beam is back, but as **three nested
+  tubes**: a bright thin core plus two wider, fainter halos. The falloff removes the "plastic rod"
+  look of the previous single tube.
+- **The controller now matches a drive exactly**: same shell alpha (0.18) and the same two edge
+  boxes (alpha 1.0 / 0.55, inflate 0.002 / 0.010). The edges are thin tubes (0.004 / 0.006 half
+  width) instead of the previous thick bar, so its weight reads like the drive's line boxes.
+
+### Fixed
+
+- The controller grid is recognised **structurally** now: an element that offers `cell(int)` and has
+  a `CellSlot` child counts as a grid, whatever the JSON layout wrapped it in. Entries are resolved
+  through `cell(index)` — the same call the panel itself uses to paint the slot — instead of reaching
+  into the sync object, which removes two assumptions.
+
 ## 1.3.1
 
 ### Changed

@@ -8,39 +8,45 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.neoforged.neoforge.client.event.ContainerScreenEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import org.joml.Matrix4f;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Draws the slot outline inside Neo ECO AE's storage subsystem host GUI.
  *
- * <p>That GUI is an LDLib2 {@code ModularUI}, not a vanilla container screen, so AE2's
- * {@code AEBaseScreen#renderSlot} hook cannot see it. Everything here goes through reflection:
- * linking against LDLib2 or the addon at compile time would make the repository unbuildable
- * without those jars.
+ * <p>The panel is an LDLib2 {@code ModularUI} built from a JSON layout, so AE2's
+ * {@code AEBaseScreen#renderSlot} hook cannot see it and {@code getAllElements()} does not
+ * necessarily contain the paged cell grid. Everything here is reflective to keep the mod buildable
+ * without LDLib2 or the addon on the classpath.
  *
- * <p>LDLib2 has two screen flavours and the storage host uses the container-backed one, where the
- * {@code ModularUI} hangs off the menu rather than the screen, so the accessor is discovered per
- * screen class instead of assumed.
+ * <p>The drive-to-slot relationship is: {@code StorageCellGrid} creates one {@code CellSlot} per
+ * grid position, each holding an int {@code index}; {@code StorageCellGrid.cell(index)} returns
+ * {@code StoragePanelState.cells().get(index)} and {@code CellEntry.position()} is the drive's
+ * block position. So a slot is identified by asking the grid for the entry at the slot's own index
+ * and comparing that position — no page arithmetic involved.
  *
- * <p>The data chain is: screen -> {@code ModularUI} -> all elements -> the {@code StorageCellGrid};
- * each child {@code CellSlot} carries a private {@code index} that selects an entry from the synced
- * {@code StoragePanelState.cells()} page, and every entry exposes the {@code BlockPos} of the drive
- * it belongs to. Matching is therefore positional and independent of the addon's ordering.
+ * <p>Drawing happens from {@code ContainerScreenEvent.Render.Foreground}, which fires at the very
+ * end of {@code AbstractContainerScreen#render} — after LDLib2 has painted the panel in
+ * {@code renderBg}. {@code ScreenEvent.Render.Post} fires too early there and the frame ends up
+ * underneath the GUI.
  */
 public final class EcoStorageOverlay {
 
     private static final String GRID_CLASS =
             "cn.dancingsnow.neoecoae.gui.storage.StorageCellGrid";
-    private static final String SLOT_CLASS =
-            "cn.dancingsnow.neoecoae.gui.storage.StorageCellGrid$CellSlot";
+    private static final String SLOT_SUFFIX = "CellSlot";
 
     private static final int BORDER = 0xFFFFFFFF;
     private static final int HINT = 0xFFFFD54F;
@@ -50,6 +56,7 @@ public final class EcoStorageOverlay {
     private static String lastProbe = "";
 
     private static final Map<Class<?>, Optional<Object>> ACCESSORS = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Optional<Method>> CELL_METHODS = new ConcurrentHashMap<>();
 
     private static Method getAllElements;
     private static Field uiField;
@@ -69,17 +76,13 @@ public final class EcoStorageOverlay {
     private static Method entryPosition;
 
     public static void onRenderScreen(ScreenEvent.Render.Post event) {
-        Screen screen = event.getScreen();
-        if (screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen) {
-            // Container screens fire ContainerScreenEvent.Render.Foreground *after* the LDLib2
-            // panel has been drawn; drawing here would put the overlay underneath it.
-            return;
+        if (event.getScreen() instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen) {
+            return; // handled by the foreground hook, which runs after the LDLib2 panel
         }
-        render(screen, event.getGuiGraphics());
+        render(event.getScreen(), event.getGuiGraphics());
     }
 
-    public static void onContainerForeground(
-            net.neoforged.neoforge.client.event.ContainerScreenEvent.Render.Foreground event) {
+    public static void onContainerForeground(ContainerScreenEvent.Render.Foreground event) {
         render(event.getContainerScreen(), event.getGuiGraphics());
     }
 
@@ -90,7 +93,6 @@ public final class EcoStorageOverlay {
         if (screen == null || graphics == null) {
             return;
         }
-
         if (!resolved) {
             resolve();
         }
@@ -106,47 +108,81 @@ public final class EcoStorageOverlay {
         }
 
         try {
-            if (!(getAllElements.invoke(ui) instanceof List<?> elements)) {
+            if (!(getAllElements.invoke(ui) instanceof List<?> registered)) {
                 probe("getAllElements returned no list");
                 return;
             }
             float originX = (Float) getLeftPos.invoke(ui);
             float originY = (Float) getTopPos.invoke(ui);
-
             List<CellRef> refs = HighlightState.refs();
 
-            var grids = new java.util.ArrayList<Object>();
-            var seen = java.util.Collections.newSetFromMap(
-                    new java.util.IdentityHashMap<Object, Boolean>());
+            var grids = new ArrayList<Object>();
+            Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap<>());
 
-            int registered = 0;
-            for (Object element : elements) {
-                if (element != null && element.getClass().getName().equals(GRID_CLASS)
-                        && seen.add(element)) {
+            for (Object element : registered) {
+                if (element != null && isGrid(element) && seen.add(element)) {
                     grids.add(element);
-                    registered++;
                 }
             }
 
-            // getAllElements() only contains elements the ModularUI was told about; walking the
-            // root element as well makes this independent of how the panel was built.
-            int fromTree = 0;
             Object root = rootElement(ui);
             if (root != null) {
-                fromTree = collectGrids(root, grids, seen, 0);
+                collectGrids(root, grids, seen, 0);
             }
 
             for (Object grid : grids) {
                 drawForGrid(graphics, grid, refs, originX, originY);
             }
-            probe("elements=" + elements.size() + " gridsRegistered=" + registered
-                    + " gridsInTree=" + fromTree + " total=" + grids.size()
+
+            probe("elements=" + registered.size() + " grids=" + grids.size()
                     + " origin=" + Math.round(originX) + "," + Math.round(originY)
                     + " refs=" + refs.size() + " refPos=" + describe(refs)
-                    + (grids.isEmpty() ? " sample=" + sampleClasses(elements) : ""));
+                    + (grids.isEmpty() ? " sample=" + sampleClasses(registered) : ""));
         } catch (Throwable t) {
             probe("render failed: " + t.getClass().getSimpleName() + ": " + t.getMessage());
         }
+    }
+
+    /**
+     * A grid is recognised structurally as well as by name: any element that offers an int
+     * {@code cell(int)} method and has a {@code CellSlot} child is the cell grid, regardless of how
+     * the JSON layout wrapped it.
+     */
+    private static boolean isGrid(Object element) {
+        Class<?> type = element.getClass();
+        if (type.getName().equals(GRID_CLASS)) {
+            return true;
+        }
+        if (cellMethod(type) == null) {
+            return false;
+        }
+        try {
+            if (getChildren.invoke(element) instanceof List<?> children) {
+                for (Object child : children) {
+                    if (child != null && child.getClass().getName().endsWith(SLOT_SUFFIX)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+            // not a grid
+        }
+        return false;
+    }
+
+    private static Method cellMethod(Class<?> type) {
+        return CELL_METHODS.computeIfAbsent(type, t -> {
+            for (Class<?> c = t; c != null && c != Object.class; c = c.getSuperclass()) {
+                try {
+                    Method method = c.getDeclaredMethod("cell", int.class);
+                    method.setAccessible(true);
+                    return Optional.of(method);
+                } catch (Throwable ignored) {
+                    // keep walking up
+                }
+            }
+            return Optional.empty();
+        }).orElse(null);
     }
 
     private static Object rootElement(Object modularUI) {
@@ -158,30 +194,24 @@ public final class EcoStorageOverlay {
         }
     }
 
-    private static int collectGrids(Object element, List<Object> out, java.util.Set<Object> seen,
-            int depth) throws Exception {
+    private static void collectGrids(Object element, List<Object> out, Set<Object> seen, int depth) {
         if (element == null || depth > 32 || !seen.add(element)) {
-            return 0;
+            return;
         }
-        int found = 0;
-        if (element.getClass().getName().equals(GRID_CLASS)) {
+        if (isGrid(element)) {
             out.add(element);
-            found++;
         }
-        if (getChildren.invoke(element) instanceof List<?> children) {
-            for (Object child : children) {
-                found += collectGrids(child, out, seen, depth + 1);
+        try {
+            if (getChildren.invoke(element) instanceof List<?> children) {
+                for (Object child : children) {
+                    collectGrids(child, out, seen, depth + 1);
+                }
             }
+        } catch (Throwable ignored) {
+            // leaf
         }
-        return found;
     }
 
-    /**
-     * Resolves the {@code ModularUI} for a screen.
-     *
-     * <p>Plain LDLib2 screens expose {@code getModularUI()}; container-backed ones keep it on
-     * {@code ModularUIContainerMenu}, reachable through the screen's {@code menu} field.
-     */
     private static Object modularUI(Screen screen) {
         Object accessor = ACCESSORS.computeIfAbsent(screen.getClass(), EcoStorageOverlay::findAccessor)
                 .orElse(null);
@@ -246,13 +276,9 @@ public final class EcoStorageOverlay {
 
     private static void drawForGrid(GuiGraphics graphics, Object grid, List<CellRef> refs,
             float originX, float originY) throws Exception {
-        Object state = panelState.invoke(syncField.get(grid));
-        if (state == null) {
-            probe("panel state is null");
-            return;
-        }
-        if (!(panelCells.invoke(state) instanceof List<?> cells) || cells.isEmpty()) {
-            probe("cells is empty");
+        Method cell = cellMethod(grid.getClass());
+        if (cell == null) {
+            probe("no cell(int) on " + grid.getClass().getName());
             return;
         }
         if (!(getChildren.invoke(grid) instanceof List<?> children)) {
@@ -260,16 +286,17 @@ public final class EcoStorageOverlay {
             return;
         }
 
-        StringBuilder seen = new StringBuilder();
+        var seen = new StringBuilder();
         for (Object child : children) {
-            if (child == null || !child.getClass().getName().equals(SLOT_CLASS)) {
+            if (child == null || !child.getClass().getName().endsWith(SLOT_SUFFIX)) {
                 continue;
             }
             int index = slotIndex.getInt(child);
-            if (index < 0 || index >= cells.size()) {
+            Object entry = cell.invoke(grid, index);
+            if (entry == null) {
                 continue;
             }
-            BlockPos pos = (BlockPos) entryPosition.invoke(cells.get(index));
+            BlockPos pos = (BlockPos) entryPosition.invoke(entry);
             if (pos == null) {
                 continue;
             }
@@ -282,15 +309,14 @@ public final class EcoStorageOverlay {
                 if (ref.pos().equals(pos)) {
                     drawFrame(graphics, child, originX, originY);
                     probe("matched index=" + index + " pos=" + pos.toShortString()
-                            + " cells=" + cells.size() + " children=" + children.size());
+                            + " slots=" + children.size());
                     return;
                 }
             }
         }
 
-        probe("no match; cells=" + cells.size() + " children=" + children.size()
-                + " seen=" + seen);
-        drawPageHint(graphics, grid, state, cells, refs, originX, originY);
+        probe("no match; slots=" + children.size() + " seen=" + seen);
+        drawPageHint(graphics, grid, refs, originX, originY);
     }
 
     private static void drawFrame(GuiGraphics graphics, Object slot, float originX, float originY)
@@ -305,8 +331,8 @@ public final class EcoStorageOverlay {
         int h = Math.max(2, Math.round(height));
 
         probe("frame x=" + x + " y=" + y + " w=" + w + " h=" + h
-                + " uiOrigin=" + Math.round(originX) + "," + Math.round(originY)
-                + " elementPose=" + Math.round(pose.m30()) + "," + Math.round(pose.m31()));
+                + " origin=" + Math.round(originX) + "," + Math.round(originY)
+                + " pose=" + Math.round(pose.m30()) + "," + Math.round(pose.m31()));
 
         graphics.fill(x, y, x + w, y + 1, BORDER);
         graphics.fill(x, y + h - 1, x + w, y + h, BORDER);
@@ -314,17 +340,8 @@ public final class EcoStorageOverlay {
         graphics.fill(x + w - 1, y, x + w, y + h, BORDER);
     }
 
-    /**
-     * The controller GUI pages through its cells, so when the target drive sits on another page the
-     * best we can do is say which page it is on.
-     */
-    private static void drawPageHint(GuiGraphics graphics, Object grid, Object state, List<?> cells,
-            List<CellRef> refs, float originX, float originY) throws Exception {
-        int pageSize = cells.size();
-        if (pageSize <= 0) {
-            return;
-        }
-
+    private static void drawPageHint(GuiGraphics graphics, Object grid, List<CellRef> refs,
+            float originX, float originY) throws Exception {
         CellRef target = null;
         for (CellRef ref : refs) {
             if (ref.link() != null) {
@@ -332,10 +349,16 @@ public final class EcoStorageOverlay {
                 break;
             }
         }
-        if (target == null) {
+        if (target == null || syncField == null) {
             return;
         }
 
+        Object state = panelState.invoke(syncField.get(grid));
+        if (state == null || !(panelCells.invoke(state) instanceof List<?> cells) || cells.isEmpty()) {
+            return;
+        }
+
+        int pageSize = cells.size();
         int total = (Integer) panelCount.invoke(state);
         int offset = (Integer) panelOffset.invoke(state);
         int currentPage = offset / pageSize + 1;
@@ -351,9 +374,8 @@ public final class EcoStorageOverlay {
                 : Component.translatable("gui.ae2itemlocator.page_hint_unknown", pages);
 
         Matrix4f pose = (Matrix4f) getLocalToWorldPose.invoke(grid);
-        float height = (Float) getSizeHeight.invoke(grid);
         int x = Math.round(originX + pose.m30());
-        int y = Math.round(originY + pose.m31() + height + 2f);
+        int y = Math.round(originY + pose.m31() + 2f);
 
         Minecraft minecraft = Minecraft.getInstance();
         graphics.drawString(minecraft.font, text.copy().withStyle(ChatFormatting.YELLOW), x, y, HINT, true);
@@ -374,7 +396,8 @@ public final class EcoStorageOverlay {
         return String.join("|", out);
     }
 
-    private static String describe(List<CellRef> refs) {        var out = new StringBuilder();
+    private static String describe(List<CellRef> refs) {
+        var out = new StringBuilder();
         for (CellRef ref : refs) {
             if (out.length() > 90) {
                 break;
@@ -385,7 +408,6 @@ public final class EcoStorageOverlay {
         return out.toString().trim();
     }
 
-    /** Logs only when the summary changes, so an open GUI does not spam the log. */
     private static void probe(String message) {
         if (!message.equals(lastProbe)) {
             lastProbe = message;
@@ -411,25 +433,31 @@ public final class EcoStorageOverlay {
             getSizeWidth = element.getMethod("getSizeWidth");
             getSizeHeight = element.getMethod("getSizeHeight");
 
-            Class<?> grid = Class.forName(GRID_CLASS);
-            syncField = grid.getDeclaredField("sync");
-            syncField.setAccessible(true);
-
-            Class<?> sync = Class.forName("cn.dancingsnow.neoecoae.gui.storage.StoragePanelSync");
-            panelState = sync.getDeclaredMethod("state");
-            panelState.setAccessible(true);
-
-            Class<?> state = Class.forName("cn.dancingsnow.neoecoae.gui.storage.StoragePanelState");
-            panelCells = state.getMethod("cells");
-            panelOffset = state.getMethod("cellOffset");
-            panelCount = state.getMethod("cellCount");
-
-            Class<?> slot = Class.forName(SLOT_CLASS);
+            Class<?> slot = Class.forName("cn.dancingsnow.neoecoae.gui.storage.StorageCellGrid$CellSlot");
             slotIndex = slot.getDeclaredField("index");
             slotIndex.setAccessible(true);
 
             Class<?> entry = Class.forName("cn.dancingsnow.neoecoae.gui.storage.StorageHostUI$CellEntry");
             entryPosition = entry.getMethod("position");
+
+            // Optional: only used for the page hint.
+            try {
+                Class<?> grid = Class.forName(GRID_CLASS);
+                Field field = grid.getDeclaredField("sync");
+                field.setAccessible(true);
+                syncField = field;
+
+                Class<?> sync = Class.forName("cn.dancingsnow.neoecoae.gui.storage.StoragePanelSync");
+                panelState = sync.getDeclaredMethod("state");
+                panelState.setAccessible(true);
+
+                Class<?> state = Class.forName("cn.dancingsnow.neoecoae.gui.storage.StoragePanelState");
+                panelCells = state.getMethod("cells");
+                panelOffset = state.getMethod("cellOffset");
+                panelCount = state.getMethod("cellCount");
+            } catch (Throwable ignored) {
+                syncField = null;
+            }
         } catch (Throwable t) {
             resolveError = "lookup: " + t;
             getAllElements = null;

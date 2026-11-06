@@ -32,9 +32,22 @@ public final class HighlightRenderer {
 
     private static final float SHELL_ALPHA = 0.18f;
     private static final float BEAM_ALPHA = 0.30f;
-    private static final float HOST_SHELL_ALPHA = 0.18f;
-    private static final float HOST_EDGE_HALF = 0.014f;
-    private static final float HOST_EDGE_ALPHA = 0.85f;
+
+    /**
+     * The link is drawn as three nested tubes instead of one solid one: a bright thin core and two
+     * progressively wider, fainter halos. A single opaque tube reads as a hard plastic rod; the
+     * falloff makes it look like a soft glowing thread.
+     */
+    private static final float[][] LINK_LAYERS = {
+            { 0.018f, 0.85f },
+            { 0.048f, 0.30f },
+            { 0.090f, 0.10f },
+    };
+
+    /** Edge half-width of the controller outline, matched to the drive's line boxes. */
+    private static final float[] HOST_EDGE_HALF = { 0.004f, 0.006f };
+    private static final float[] HOST_EDGE_ALPHA = { 1.0f, 0.55f };
+    private static final float[] HOST_EDGE_INFLATE = { 0.002f, 0.010f };
 
     /**
      * Quads that ignore the depth buffer, so the link beam and the controller box stay visible
@@ -131,16 +144,32 @@ public final class HighlightRenderer {
                 }
             }
 
-            // Multiblock controller: same treatment as a drive (translucent shell plus a bright
-            // edge), drawn through walls because it normally sits inside the casing.
+            // Multiblock controller: same treatment as a drive — translucent shell plus the same two
+            // nested edge boxes — drawn through walls because it sits inside the casing. The link
+            // itself is a soft three-layer beam along the straight line.
             VertexConsumer ghost = buffers.getBuffer(THROUGH_WALLS);
             boolean drewGhost = false;
             for (CellRef ref : HighlightState.refs()) {
                 if (ref.link() == null || !ref.dimension().equals(level.dimension())) {
                     continue;
                 }
-                shell(pose, ghost, ref.link(), dr, dg, db, HOST_SHELL_ALPHA);
-                wireBox(pose, ghost, ref.link(), HOST_EDGE_HALF, HOST_EDGE_ALPHA, dr, dg, db);
+
+                shell(pose, ghost, ref.link(), dr, dg, db, SHELL_ALPHA);
+                for (int i = 0; i < HOST_EDGE_HALF.length; i++) {
+                    wireBox(pose, ghost, ref.link(), HOST_EDGE_INFLATE[i],
+                            HOST_EDGE_HALF[i], HOST_EDGE_ALPHA[i], dr, dg, db);
+                }
+
+                float x1 = ref.pos().getX() + 0.5f;
+                float y1 = ref.pos().getY() + 0.5f;
+                float z1 = ref.pos().getZ() + 0.5f;
+                float x2 = ref.link().getX() + 0.5f;
+                float y2 = ref.link().getY() + 0.5f;
+                float z2 = ref.link().getZ() + 0.5f;
+                for (float[] layer : LINK_LAYERS) {
+                    tube(pose, ghost, x1, y1, z1, x2, y2, z2, layer[0], layer[1], dr, dg, db);
+                }
+
                 drewGhost = true;
             }
             if (drewGhost) {
@@ -229,13 +258,13 @@ public final class HighlightRenderer {
      * relying on GL line width. Used for the controller, which is drawn through walls.
      */
     private static void wireBox(PoseStack pose, VertexConsumer consumer, BlockPos pos,
-            float half, float alpha, float r, float g, float b) {
-        float x1 = pos.getX();
-        float y1 = pos.getY();
-        float z1 = pos.getZ();
-        float x2 = x1 + 1f;
-        float y2 = y1 + 1f;
-        float z2 = z1 + 1f;
+            float inflate, float half, float alpha, float r, float g, float b) {
+        float x1 = pos.getX() - inflate;
+        float y1 = pos.getY() - inflate;
+        float z1 = pos.getZ() - inflate;
+        float x2 = x1 + 1f + inflate * 2f;
+        float y2 = y1 + 1f + inflate * 2f;
+        float z2 = z1 + 1f + inflate * 2f;
 
         // bottom rectangle
         tube(pose, consumer, x1, y1, z1, x2, y1, z1, half, alpha, r, g, b);

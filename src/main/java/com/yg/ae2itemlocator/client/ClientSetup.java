@@ -70,8 +70,6 @@ public final class ClientSetup {
             ClientIndexState.clearHover();
         }
 
-        LinkParticles.tick();
-
         if (minecraft.screen == null) {
             while (Keybinds.LOCK.consumeClick()) {
                 Keybinds.toggle();
