@@ -29,8 +29,9 @@ public final class HighlightRenderer {
 
     private static final float SHELL_ALPHA = 0.18f;
     private static final float BEAM_ALPHA = 0.30f;
-    private static final float LINK_HALF = 0.055f;
-    private static final float LINK_ALPHA = 0.42f;
+    private static final float LINK_HALF = 0.07f;
+    private static final float LINK_ALPHA = 0.55f;
+    private static final float LINK_ARC_HEIGHT = 3.0f;
 
     public static void onRenderLevel(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
@@ -107,15 +108,24 @@ public final class HighlightRenderer {
                 }
             }
 
-            // Multiblock controllers: a thin tube from the drive to the controller it belongs to.
+            // Multiblock controllers: the drive and its controller usually sit inside the same
+            // structure, so a straight segment would be buried in it. Route the link over the top
+            // instead: up, across, down.
             VertexConsumer linkQuads = buffers.getBuffer(RenderType.debugQuads());
             boolean drewLink = false;
             for (CellRef ref : HighlightState.refs()) {
                 if (ref.link() != null && ref.dimension().equals(level.dimension())) {
-                    tube(pose, linkQuads,
-                            ref.pos().getX() + 0.5f, ref.pos().getY() + 0.5f, ref.pos().getZ() + 0.5f,
-                            ref.link().getX() + 0.5f, ref.link().getY() + 0.5f, ref.link().getZ() + 0.5f,
-                            LINK_HALF, LINK_ALPHA, dr, dg, db);
+                    float x1 = ref.pos().getX() + 0.5f;
+                    float z1 = ref.pos().getZ() + 0.5f;
+                    float x2 = ref.link().getX() + 0.5f;
+                    float z2 = ref.link().getZ() + 0.5f;
+                    float y1 = ref.pos().getY() + 1.0f;
+                    float y2 = ref.link().getY() + 1.0f;
+                    float arc = Math.max(y1, y2) + LINK_ARC_HEIGHT;
+
+                    tube(pose, linkQuads, x1, y1, z1, x1, arc, z1, LINK_HALF, LINK_ALPHA, dr, dg, db);
+                    tube(pose, linkQuads, x1, arc, z1, x2, arc, z2, LINK_HALF, LINK_ALPHA, dr, dg, db);
+                    tube(pose, linkQuads, x2, arc, z2, x2, y2, z2, LINK_HALF, LINK_ALPHA, dr, dg, db);
                     drewLink = true;
                 }
             }

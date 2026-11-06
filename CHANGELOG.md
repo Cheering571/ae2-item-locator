@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.2.2
+
+### Fixed
+
+- **Slot outline in the controller GUI.** The storage host opens
+  `ModularUIContainerScreen`, which has no `getModularUI()` at all — the `ModularUI` hangs off its
+  menu (`ModularUIContainerMenu.modularUI`). The accessor is now discovered per screen class:
+  method, then field, then the container menu. This was the reason the overlay logged
+  `-> not a modular UI, skipped` and drew nothing.
+- **Link line was invisible.** The drive and its controller sit inside the same structure, so a
+  straight segment between them was hidden by the casing. The link is now routed over the top of
+  the structure (up, across, down) and is thicker and more opaque.
+
+### Diagnostics
+
+- Every scan reports `link=` and `hostSlot=`, the renderer reports `refs=` / `withLink=`, and the
+  controller overlay reports the screen class, element count, grid count, page size and match result.
+
 ## 1.2.1
 
 ### Fixed

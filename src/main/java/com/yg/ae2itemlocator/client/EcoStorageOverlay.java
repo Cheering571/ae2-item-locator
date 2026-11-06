@@ -14,26 +14,29 @@ import org.joml.Matrix4f;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Draws the slot outline inside Neo ECO AE's storage subsystem host GUI.
  *
  * <p>That GUI is an LDLib2 {@code ModularUI}, not a vanilla container screen, so AE2's
- * {@code AEBaseScreen#renderSlot} hook cannot see it and neither can {@code AbstractContainerScreen}.
- * Everything here therefore goes through reflection: attaching this mod to LDLib2 or to the addon at
- * compile time would make the repository unbuildable without those jars.
+ * {@code AEBaseScreen#renderSlot} hook cannot see it. Everything here goes through reflection:
+ * linking against LDLib2 or the addon at compile time would make the repository unbuildable
+ * without those jars.
+ *
+ * <p>LDLib2 has two screen flavours and the storage host uses the container-backed one, where the
+ * {@code ModularUI} hangs off the menu rather than the screen, so the accessor is discovered per
+ * screen class instead of assumed.
  *
  * <p>The data chain is: screen -> {@code ModularUI} -> all elements -> the {@code StorageCellGrid};
  * each child {@code CellSlot} carries a private {@code index} that selects an entry from the synced
  * {@code StoragePanelState.cells()} page, and every entry exposes the {@code BlockPos} of the drive
- * it belongs to. So the mapping is positional and independent of how the addon orders its list.
+ * it belongs to. Matching is therefore positional and independent of the addon's ordering.
  */
 public final class EcoStorageOverlay {
 
-    private static final String SCREEN_CLASS =
-            "com.lowdragmc.lowdraglib2.gui.holder.ModularUIScreen";
-    private static final String CONTAINER_SCREEN_CLASS =
-            "com.lowdragmc.lowdraglib2.gui.holder.ModularUIContainerScreen";
     private static final String GRID_CLASS =
             "cn.dancingsnow.neoecoae.gui.storage.StorageCellGrid";
     private static final String SLOT_CLASS =
@@ -46,25 +49,8 @@ public final class EcoStorageOverlay {
     private static String resolveError = "";
     private static String lastProbe = "";
 
-    /** Screens come in two flavours (plain and container-backed), so match by capability. */
-    private static final java.util.Map<Class<?>, java.util.Optional<Method>> SCREEN_METHODS =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<Class<?>, Optional<Object>> ACCESSORS = new ConcurrentHashMap<>();
 
-    private static Method modularUIMethod(Screen screen) {
-        return SCREEN_METHODS.computeIfAbsent(screen.getClass(), type -> {
-            String name = type.getName();
-            if (!name.startsWith("com.lowdragmc.lowdraglib2.gui.holder.")) {
-                return java.util.Optional.empty();
-            }
-            try {
-                return java.util.Optional.of(type.getMethod("getModularUI"));
-            } catch (Throwable t) {
-                return java.util.Optional.empty();
-            }
-        }).orElse(null);
-    }
-
-    private static Method getModularUI;
     private static Method getAllElements;
     private static Method getLeftPos;
     private static Method getTopPos;
@@ -97,18 +83,14 @@ public final class EcoStorageOverlay {
             probe("resolve failed: " + resolveError);
             return;
         }
-        Method modularUI = modularUIMethod(screen);
-        if (modularUI == null) {
-            probe("screen=" + screen.getClass().getName() + " -> not a modular UI, skipped");
+
+        Object ui = modularUI(screen);
+        if (ui == null) {
+            probe("screen=" + screen.getClass().getName() + " -> no ModularUI");
             return;
         }
 
         try {
-            Object ui = modularUI.invoke(screen);
-            if (ui == null) {
-                probe("modularUI is null");
-                return;
-            }
             if (!(getAllElements.invoke(ui) instanceof List<?> elements)) {
                 probe("getAllElements returned no list");
                 return;
@@ -130,10 +112,78 @@ public final class EcoStorageOverlay {
             probe("elements=" + elements.size() + " grids=" + grids
                     + " origin=" + Math.round(originX) + "," + Math.round(originY)
                     + " refs=" + refs.size() + " refPos=" + describe(refs)
-                    + " screen=" + screen.getClass().getSimpleName());
+                    + " uiOrigin=" + ui.getClass().getSimpleName());
         } catch (Throwable t) {
             probe("render failed: " + t.getClass().getSimpleName() + ": " + t.getMessage());
         }
+    }
+
+    /**
+     * Resolves the {@code ModularUI} for a screen.
+     *
+     * <p>Plain LDLib2 screens expose {@code getModularUI()}; container-backed ones keep it on
+     * {@code ModularUIContainerMenu}, reachable through the screen's {@code menu} field.
+     */
+    private static Object modularUI(Screen screen) {
+        Object accessor = ACCESSORS.computeIfAbsent(screen.getClass(), EcoStorageOverlay::findAccessor)
+                .orElse(null);
+        if (accessor == null) {
+            return null;
+        }
+        try {
+            if (accessor instanceof Method method) {
+                return method.invoke(screen);
+            }
+            if (accessor instanceof Field field) {
+                return field.get(screen);
+            }
+            if (accessor instanceof MenuAccessor menu) {
+                Object container = menu.menuField.get(screen);
+                return container == null ? null : menu.getter.invoke(container);
+            }
+        } catch (Throwable t) {
+            probe("modularUI access failed: " + t);
+        }
+        return null;
+    }
+
+    private static Optional<Object> findAccessor(Class<?> type) {
+        if (!type.getName().startsWith("com.lowdragmc.lowdraglib2.gui.holder.")) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(type.getMethod("getModularUI"));
+        } catch (Throwable ignored) {
+            // container-backed screens do not have it
+        }
+        try {
+            return Optional.of(type.getField("modularUI"));
+        } catch (Throwable ignored) {
+            // not a plain field either
+        }
+        try {
+            Field menuField = null;
+            for (Class<?> c = type; c != null; c = c.getSuperclass()) {
+                try {
+                    menuField = c.getDeclaredField("menu");
+                    break;
+                } catch (Throwable ignored) {
+                    // keep walking up the hierarchy
+                }
+            }
+            if (menuField == null) {
+                return Optional.empty();
+            }
+            menuField.setAccessible(true);
+            Method getter = Class.forName("com.lowdragmc.lowdraglib2.gui.holder.ModularUIContainerMenu")
+                    .getMethod("getModularUI");
+            return Optional.of(new MenuAccessor(menuField, getter));
+        } catch (Throwable t) {
+            return Optional.empty();
+        }
+    }
+
+    private record MenuAccessor(Field menuField, Method getter) {
     }
 
     private static void drawForGrid(GuiGraphics graphics, Object grid, List<CellRef> refs,
@@ -165,7 +215,7 @@ public final class EcoStorageOverlay {
             if (pos == null) {
                 continue;
             }
-            if (seen.length() < 120) {
+            if (seen.length() < 140) {
                 seen.append(pos.getX()).append(',').append(pos.getY()).append(',')
                         .append(pos.getZ()).append(' ');
             }
@@ -173,15 +223,15 @@ public final class EcoStorageOverlay {
             for (CellRef ref : refs) {
                 if (ref.pos().equals(pos)) {
                     drawFrame(graphics, child, originX, originY);
-                    probe("matched slot index=" + index + " pos=" + pos.toShortString()
+                    probe("matched index=" + index + " pos=" + pos.toShortString()
                             + " cells=" + cells.size() + " children=" + children.size());
                     return;
                 }
             }
         }
 
-        probe("no match on this page; cells=" + cells.size() + " children=" + children.size()
-                + " first=" + seen);
+        probe("no match; cells=" + cells.size() + " children=" + children.size()
+                + " seen=" + seen);
         drawPageHint(graphics, grid, state, cells, refs, originX, originY);
     }
 
@@ -259,7 +309,7 @@ public final class EcoStorageOverlay {
         return out.toString().trim();
     }
 
-    /** Logs only when the summary changes, so a GUI open does not spam the log. */
+    /** Logs only when the summary changes, so an open GUI does not spam the log. */
     private static void probe(String message) {
         if (!message.equals(lastProbe)) {
             lastProbe = message;
