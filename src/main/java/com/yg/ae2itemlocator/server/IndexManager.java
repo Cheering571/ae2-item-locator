@@ -245,15 +245,24 @@ public final class IndexManager {
             return;
         }
 
+        var controller = CellHostProbe.controller(blockEntity);
         var cellRef = new com.yg.ae2itemlocator.common.CellRef(level.dimension(),
                 blockEntity.getBlockPos(), com.yg.ae2itemlocator.common.CellRef.NO_SLOT,
                 CellHostProbe.cellLabel(blockEntity), host.subnet(),
-                CellHostProbe.controllerPos(blockEntity), CellHostProbe.hostSlot(blockEntity));
+                controller == null ? null : controller.pos(),
+                controller == null ? com.yg.ae2itemlocator.common.CellRef.NO_HOST_SLOT
+                        : controller.slot());
         out.add(cellRef);
         detail.append('(').append(cellRef.pos().getX()).append(',')
                 .append(cellRef.pos().getY()).append(',')
                 .append(cellRef.pos().getZ()).append(") cell")
-                .append(host.subnet() ? " subnet" : " root").append(' ');
+                .append(host.subnet() ? " subnet" : " root")
+                .append(" link=").append(cellRef.link() == null ? "null"
+                        : cellRef.link().getX() + "," + cellRef.link().getY() + ","
+                                + cellRef.link().getZ())
+                .append(" hostSlot=").append(cellRef.hostSlot())
+                .append(" id=").append(blockEntity.getType().toString())
+                .append(' ');
     }
 
     private static void evictIfNeeded() {

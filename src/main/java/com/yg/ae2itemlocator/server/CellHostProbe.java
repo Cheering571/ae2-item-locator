@@ -80,6 +80,68 @@ public final class CellHostProbe {
      * @return position of the multiblock controller this cell host belongs to, or {@code null} when
      *         it is not part of one.
      */
+    /**
+     * Resolves the multiblock controller of a cell host: first through the documented
+     * {@code getStorageController()}, then — if that returns nothing — by looking for a nearby
+     * controller whose drive list contains this very block entity. The fallback exists because the
+     * direct accessor depends on the addon having rebuilt its cluster reference, which does not
+     * always happen at the moment we scan.
+     *
+     * @return controller position plus this drive's index in its list, or {@code null} when the
+     *         drive is not part of a controller at all.
+     */
+    public static ControllerRef controller(BlockEntity blockEntity) {
+        BlockPos direct = controllerPos(blockEntity);
+        if (direct != null) {
+            return new ControllerRef(direct, hostSlot(blockEntity));
+        }
+        return scanNearbyController(blockEntity);
+    }
+
+    public record ControllerRef(BlockPos pos, int slot) {
+    }
+
+    private static ControllerRef scanNearbyController(BlockEntity drive) {
+        var level = drive.getLevel();
+        if (level == null) {
+            return null;
+        }
+
+        BlockPos origin = drive.getBlockPos();
+        int cx = origin.getX() >> 4;
+        int cz = origin.getZ() >> 4;
+
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                var chunk = level.getChunkSource().getChunkNow(cx + dx, cz + dz);
+                if (chunk == null) {
+                    continue;
+                }
+                for (BlockEntity candidate : chunk.getBlockEntities().values()) {
+                    if (candidate == drive) {
+                        continue;
+                    }
+                    Method drives = drivesMethod(candidate.getClass());
+                    if (drives == null) {
+                        continue;
+                    }
+                    try {
+                        if (drives.invoke(candidate) instanceof java.util.List<?> list) {
+                            for (int i = 0; i < list.size(); i++) {
+                                if (list.get(i) == drive) {
+                                    return new ControllerRef(candidate.getBlockPos(), i);
+                                }
+                            }
+                        }
+                    } catch (Throwable ignored) {
+                        // keep looking
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     public static BlockPos controllerPos(BlockEntity blockEntity) {
         Method controller = lookup(blockEntity.getClass())[2];
         if (controller == null) {

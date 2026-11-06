@@ -368,9 +368,11 @@ public final class GridIndex {
             return;
         }
 
+        var controller = CellHostProbe.controller(blockEntity);
         CellRef cellRef = new CellRef(level.dimension(), blockEntity.getBlockPos(), CellRef.NO_SLOT,
                 CellHostProbe.cellLabel(blockEntity), host.subnet(),
-                CellHostProbe.controllerPos(blockEntity), CellHostProbe.hostSlot(blockEntity));
+                controller == null ? null : controller.pos(),
+                controller == null ? CellRef.NO_HOST_SLOT : controller.slot());
         for (AEKey key : counter.keySet()) {
             byKey.computeIfAbsent(key, ignored -> new ArrayList<>(2)).add(cellRef);
         }

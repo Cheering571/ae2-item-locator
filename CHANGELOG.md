@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.2.1
+
+### Fixed
+
+- **Link line could stay invisible.** `getStorageController()` only returns something once the
+  addon has rebuilt its cluster reference for that drive, which is not guaranteed at scan time.
+  The controller is now also located by searching the surrounding chunks for a controller whose
+  cell list contains the drive, so the line appears even when the direct accessor is empty.
+- **Slot outline never appeared in the controller GUI.** The overlay only accepted the exact
+  `ModularUIScreen` class; it now accepts any LDLib2 screen that exposes `getModularUI()`, which
+  covers the container-backed variant the storage host actually uses.
+
+### Diagnostics
+
+- Every scan line now reports `link=` and `hostSlot=`, the renderer logs `refs=/withLink=`, and the
+  controller overlay logs one line per distinct state. All are change-triggered, so they stay quiet
+  during normal play.
+
 ## 1.2.0
 
 ### Added

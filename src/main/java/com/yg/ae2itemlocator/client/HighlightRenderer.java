@@ -39,6 +39,7 @@ public final class HighlightRenderer {
         if (!HighlightState.isLocked() || !HighlightState.hasRefs()) {
             return;
         }
+        probeLinks();
 
         Minecraft minecraft = Minecraft.getInstance();
         Level level = minecraft.level;
@@ -125,6 +126,26 @@ public final class HighlightRenderer {
             pose.popPose();
         }
     }
+
+    /** One-shot diagnostic per distinct state, so a link line that never appears is explainable. */
+    private static void probeLinks() {
+        var summary = new StringBuilder();
+        summary.append("refs=").append(HighlightState.refs().size());
+        int withLink = 0;
+        for (CellRef ref : HighlightState.refs()) {
+            if (ref.link() != null) {
+                withLink++;
+            }
+        }
+        summary.append(" withLink=").append(withLink);
+        String line = summary.toString();
+        if (!line.equals(lastLinkProbe)) {
+            lastLinkProbe = line;
+            com.yg.ae2itemlocator.AE2ItemLocator.LOG.info("[ae2-disk-locator] render {}", line);
+        }
+    }
+
+    private static String lastLinkProbe = "";
 
     /** Six translucent faces, slightly inflated so they do not z-fight with the drive block. */
     private static void shell(PoseStack pose, VertexConsumer consumer, BlockPos pos,
