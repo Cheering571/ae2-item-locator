@@ -129,39 +129,40 @@ public final class ClientConfig {
     }
 
     public static int beamColor() {
-        return resolve(COLOR_BEAM, RAINBOW_BEAM, 0f);
+        return resolve(COLOR_BEAM, RAINBOW_BEAM);
     }
 
     public static int driveColor() {
-        return resolve(COLOR_DRIVE, RAINBOW_DRIVE, 1f / 3f);
+        return resolve(COLOR_DRIVE, RAINBOW_DRIVE);
     }
 
     public static int slotColor() {
-        return resolve(COLOR_SLOT, RAINBOW_SLOT, 2f / 3f);
+        return resolve(COLOR_SLOT, RAINBOW_SLOT);
     }
 
     /** Current colour of the rainbow cycle, for the settings screen's swatch preview. */
-    public static int rainbowPreview(float phase) {
-        return rainbowRgb(phase);
+    public static int rainbowPreview() {
+        return rainbowRgb();
     }
 
     /**
-     * Unified mode wins over the per-part value, and the same rule applies to the rainbow flags:
-     * with "one colour" enabled the three parts share one cycling colour, otherwise each part
-     * cycles on its own phase so they stay visually distinct.
+     * Unified mode wins over the per-part value, and the same rule applies to the rainbow flags.
+     *
+     * <p>Every part shares one phase on purpose: with the cycle running, the beam, the block
+     * highlight and the link line must all be the same colour at the same moment. Giving each part
+     * its own phase looked like a bug.
      */
-    private static int resolve(ModConfigSpec.IntValue separate, ModConfigSpec.BooleanValue separateRainbow,
-            float phase) {
+    private static int resolve(ModConfigSpec.IntValue separate, ModConfigSpec.BooleanValue separateRainbow) {
         boolean isUnified = unified();
         boolean rainbow = isUnified ? RAINBOW_UNIFIED.get() : separateRainbow.get();
-        int rgb = rainbow ? rainbowRgb(phase) : (isUnified ? COLOR_UNIFIED.get() : separate.get());
+        int rgb = rainbow ? rainbowRgb() : (isUnified ? COLOR_UNIFIED.get() : separate.get());
         return 0xFF000000 | (rgb & 0xFFFFFF);
     }
 
     private static final long RAINBOW_PERIOD_MS = 6000L;
 
-    private static int rainbowRgb(float phase) {
-        float hue = ((System.currentTimeMillis() % RAINBOW_PERIOD_MS) / (float) RAINBOW_PERIOD_MS + phase) % 1f;
+    private static int rainbowRgb() {
+        float hue = (System.currentTimeMillis() % RAINBOW_PERIOD_MS) / (float) RAINBOW_PERIOD_MS;
         float scaled = hue * 6f;
         int sector = (int) scaled % 6;
         float f = scaled - (int) scaled;

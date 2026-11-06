@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.1
+
+### Fixed
+
+- **Rainbow parts cycled out of phase.** The three colour parts were given 0°, 120° and 240° offsets,
+  so with the cycle running the beams were one colour while the block highlight and the link lines
+  were another. All parts now share a single phase and are always the same colour at the same
+  moment, whether or not "one colour" is enabled.
+
 ## 1.4.0
 
 ### Added

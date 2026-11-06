@@ -129,9 +129,10 @@ public final class ConfigScreen extends Screen {
         for (ColorRow row : rows) {
             graphics.drawString(font, Component.translatable(row.labelKey), px + 12, row.y, LABEL_COLOR, false);
 
-            // While the rainbow cycle is on, the swatch previews the live colour.
+            // While the rainbow cycle is on, the swatch previews the live colour (same phase the
+            // renderer uses, so what is shown here is what appears in world).
             int rgb = row.rainbow.get()
-                    ? ClientConfig.rainbowPreview(row.rainbowPhase())
+                    ? ClientConfig.rainbowPreview()
                     : row.config.get() & 0xFFFFFF;
             int swatchX = px + 96;
             graphics.fill(swatchX, row.y - 2, swatchX + 12, row.y + 10, 0xFF000000 | rgb);
@@ -191,14 +192,6 @@ public final class ConfigScreen extends Screen {
                     minecraft.setScreen(new ConfigScreen());
                 }
             }));
-        }
-
-        /** Same phase offsets the renderer uses, so the preview matches what is drawn in world. */
-        float rainbowPhase() {
-            if (ClientConfig.unified()) {
-                return 0f;
-            }
-            return labelKey.endsWith("beam") ? 0f : labelKey.endsWith("drive") ? 1f / 3f : 2f / 3f;
         }
 
         private Component rainbowLabel() {
