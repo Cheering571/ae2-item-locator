@@ -124,7 +124,7 @@ Not covered:
 
 1. Install NeoForge 21.1.169 or newer for Minecraft 1.21.1.
 2. Place [Applied Energistics 2](https://modrinth.com/mod/ae2) and GuideME into `mods/`.
-3. Place `ae2itemlocator-forge-1.0.0.jar` into `mods/`.
+3. Place `ae2itemlocator-forge-1.4.2.jar` into `mods/`.
 
 ## Usage
 

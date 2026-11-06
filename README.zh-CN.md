@@ -104,7 +104,7 @@
 
 1. 为 Minecraft 1.21.1 安装 NeoForge 21.1.169 或更高版本。
 2. 将 [应用能源 2](https://modrinth.com/mod/ae2) 与 GuideME 放入 `mods/`。
-3. 将 `ae2itemlocator-forge-1.0.0.jar` 放入 `mods/`。
+3. 将 `ae2itemlocator-forge-1.4.2.jar` 放入 `mods/`。
 
 ## 使用
 
