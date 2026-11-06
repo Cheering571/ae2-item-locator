@@ -65,6 +65,9 @@ public final class EcoStorageOverlay {
     private static Method getTopPos;
     private static Method getChildren;
     private static Method getLocalToWorldPose;
+    private static Method getPositionX;
+    private static Method getPositionY;
+    private static Method getParent;
     private static Method getSizeWidth;
     private static Method getSizeHeight;
     private static Field syncField;
@@ -319,25 +322,57 @@ public final class EcoStorageOverlay {
         drawPageHint(graphics, grid, refs, originX, originY);
     }
 
+    /**
+     * Absolute position of an element inside the GUI, computed the way the layout does it: every
+     * element's position is relative to its parent, so the chain is summed from the slot up to the
+     * root. {@code getLocalToWorldPose()} was tried first and lands a few cells off, either because
+     * its pose cache is stale outside the draw pass or because its origin already equals the
+     * screen's origin.
+     */
+    private static float[] absolutePosition(Object element) throws Exception {
+        float x = 0f;
+        float y = 0f;
+        Object current = element;
+        int guard = 0;
+        while (current != null && guard++ < 64) {
+            x += (Float) getPositionX.invoke(current);
+            y += (Float) getPositionY.invoke(current);
+            current = getParent.invoke(current);
+        }
+        return new float[] { x, y };
+    }
+
     private static void drawFrame(GuiGraphics graphics, Object slot, float originX, float originY)
             throws Exception {
-        Matrix4f pose = (Matrix4f) getLocalToWorldPose.invoke(slot);
+        float[] absolute = absolutePosition(slot);
         float width = (Float) getSizeWidth.invoke(slot);
         float height = (Float) getSizeHeight.invoke(slot);
 
-        int x = Math.round(originX + pose.m30());
-        int y = Math.round(originY + pose.m31());
         int w = Math.max(2, Math.round(width));
         int h = Math.max(2, Math.round(height));
+        // No UI-origin term: the chain sum is already relative to the screen's GUI origin, which is
+        // exactly the space GuiGraphics is drawing in at this point (the pose is translated by the
+        // container screen's left/top). Adding the ModularUI origin on top shifted the frame by
+        // roughly six cells in the earlier build.
+        int x = Math.round(absolute[0]);
+        int y = Math.round(absolute[1]);
 
+        Matrix4f pose = (Matrix4f) getLocalToWorldPose.invoke(slot);
         probe("frame x=" + x + " y=" + y + " w=" + w + " h=" + h
-                + " origin=" + Math.round(originX) + "," + Math.round(originY)
-                + " pose=" + Math.round(pose.m30()) + "," + Math.round(pose.m31()));
+                + " sum=" + Math.round(absolute[0]) + "," + Math.round(absolute[1])
+                + " pose=" + Math.round(pose.m30()) + "," + Math.round(pose.m31())
+                + " origin=" + Math.round(originX) + "," + Math.round(originY));
 
-        graphics.fill(x, y, x + w, y + 1, BORDER);
-        graphics.fill(x, y + h - 1, x + w, y + h, BORDER);
-        graphics.fill(x, y, x + 1, y + h, BORDER);
-        graphics.fill(x + w - 1, y, x + w, y + h, BORDER);
+        // Same colours and geometry as the drive slot outline, so the configured slot colour
+        // applies here too.
+        int border = ClientConfig.slotColor();
+        int fill = (border & 0xFFFFFF) | 0x33000000;
+
+        graphics.fill(x, y, x + w, y + h, fill);
+        graphics.fill(x, y, x + w, y + 1, border);
+        graphics.fill(x, y + h - 1, x + w, y + h, border);
+        graphics.fill(x, y, x + 1, y + h, border);
+        graphics.fill(x + w - 1, y, x + w, y + h, border);
     }
 
     private static void drawPageHint(GuiGraphics graphics, Object grid, List<CellRef> refs,
@@ -430,6 +465,9 @@ public final class EcoStorageOverlay {
             Class<?> element = Class.forName("com.lowdragmc.lowdraglib2.gui.ui.UIElement");
             getChildren = element.getMethod("getChildren");
             getLocalToWorldPose = element.getMethod("getLocalToWorldPose");
+            getPositionX = element.getMethod("getPositionX");
+            getPositionY = element.getMethod("getPositionY");
+            getParent = element.getMethod("getParent");
             getSizeWidth = element.getMethod("getSizeWidth");
             getSizeHeight = element.getMethod("getSizeHeight");
 

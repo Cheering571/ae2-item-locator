@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.3
+
+### Fixed
+
+- **Controller slot frame was offset by roughly six cells.** The rect combined the element's
+  local-to-world pose with the `ModularUI` origin, but the pose already resolves to the screen's GUI
+  space, so the origin was counted twice. The position now accumulates
+  `getPositionX()/getPositionY()` up the parent chain, which is exactly how LDLib2 lays the tree out,
+  and adds no origin term.
+- **The frame is coloured like the drive outline.** It used a hard-coded white; it now uses
+  `ClientConfig.slotColor()` with the same 0x33 fill plus a 1px border, so changing the slot colour
+  in the config screen affects both places.
+
 ## 1.3.2
 
 ### Changed
