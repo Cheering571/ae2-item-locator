@@ -287,7 +287,11 @@ public final class EcoStorageOverlay {
         }
 
         var seen = new StringBuilder();
+        var xs = new ArrayList<Float>();
+        var ys = new ArrayList<Float>();
+        Object matched = null;
         int slots = 0;
+
         for (Object child : children) {
             if (child == null || !child.getClass().getName().endsWith(SLOT_SUFFIX)) {
                 continue;
@@ -302,49 +306,75 @@ public final class EcoStorageOverlay {
             if (pos == null) {
                 continue;
             }
+            xs.add((Float) getPositionX.invoke(child));
+            ys.add((Float) getPositionY.invoke(child));
             if (seen.length() < 140) {
                 seen.append(pos.getX()).append(',').append(pos.getY()).append(',')
                         .append(pos.getZ()).append(' ');
             }
 
-            for (CellRef ref : refs) {
-                if (ref.pos().equals(pos)) {
-                    drawFrame(graphics, child, originX, originY);
-                    probe("matched index=" + index + " pos=" + pos.toShortString()
-                            + " slots=" + slots);
-                    return;
+            if (matched == null) {
+                for (CellRef ref : refs) {
+                    if (ref.pos().equals(pos)) {
+                        matched = child;
+                        probe("matched index=" + index + " pos=" + pos.toShortString()
+                                + " slots=" + slots);
+                        break;
+                    }
                 }
             }
         }
 
-        probe("no match; slots=" + slots + " seen=" + seen);
-        drawPageHint(graphics, grid, refs, originX, originY);
-    }
-
-    private static void drawFrame(GuiGraphics graphics, Object slot, float originX, float originY)
-            throws Exception {
-        float width = (Float) getSizeWidth.invoke(slot);
-        float height = (Float) getSizeHeight.invoke(slot);
-
-        // getLocalToWorldPose() returns an identity matrix outside the UI draw pass (the log showed
-        // m30=/m31= 0), so it is useless here. getPositionX/Y already carry the absolute GUI
-        // coordinate, and the GuiGraphics pose at this point is translated by the screen's
-        // left/top — which is exactly what ModularUI reports as its origin.
-        float slotX = (Float) getPositionX.invoke(slot);
-        float slotY = (Float) getPositionY.invoke(slot);
-
-        int w = Math.max(2, Math.round(width));
-        int h = Math.max(2, Math.round(height));
-        int x = Math.round(slotX - originX);
-        int y = Math.round(slotY - originY);
-
-        // Insurance: never draw nothing because a coordinate went absurd.
-        if (Math.abs(x) > 5000 || Math.abs(y) > 5000) {
-            x = Math.round(slotX);
-            y = Math.round(slotY);
+        if (matched == null) {
+            probe("no match; slots=" + slots + " seen=" + seen);
+            drawPageHint(graphics, grid, refs, originX, originY);
+            return;
         }
 
+        // The element is only the icon area (16px); a grid cell is one pitch wide. Derive the pitch
+        // from the neighbouring slots so the frame covers the slot, not the icon.
+        drawFrame(graphics, matched, originX, originY, minPitch(xs), minPitch(ys));
+    }
+
+    /** Smallest positive gap between distinct coordinates; 0 when there is nothing to measure. */
+    private static float minPitch(List<Float> values) {
+        if (values.size() < 2) {
+            return 0f;
+        }
+        var sorted = new ArrayList<>(values);
+        Collections.sort(sorted);
+        float best = Float.MAX_VALUE;
+        for (int i = 1; i < sorted.size(); i++) {
+            float delta = sorted.get(i) - sorted.get(i - 1);
+            if (delta > 0.5f && delta < best) {
+                best = delta;
+            }
+        }
+        return best == Float.MAX_VALUE ? 0f : best;
+    }
+
+    private static void drawFrame(GuiGraphics graphics, Object slot, float originX, float originY,
+            float pitchX, float pitchY) throws Exception {
+        float slotX = (Float) getPositionX.invoke(slot);
+        float slotY = (Float) getPositionY.invoke(slot);
+        float iconW = (Float) getSizeWidth.invoke(slot);
+        float iconH = (Float) getSizeHeight.invoke(slot);
+
+        // Fall back to the icon size plus the usual 1px slot border when the grid has one cell.
+        float cellW = pitchX > 0.5f ? pitchX : iconW + 2f;
+        float cellH = pitchY > 0.5f ? pitchY : iconH + 2f;
+
+        // The icon is centred inside its cell, so centre the frame on the icon.
+        float centreX = slotX - originX + iconW / 2f;
+        float centreY = slotY - originY + iconH / 2f;
+        int x = Math.round(centreX - cellW / 2f);
+        int y = Math.round(centreY - cellH / 2f);
+        int w = Math.max(2, Math.round(cellW));
+        int h = Math.max(2, Math.round(cellH));
+
         probe("frame x=" + x + " y=" + y + " w=" + w + " h=" + h
+                + " icon=" + Math.round(iconW) + "x" + Math.round(iconH)
+                + " pitch=" + Math.round(cellW) + "x" + Math.round(cellH)
                 + " slotPos=" + Math.round(slotX) + "," + Math.round(slotY)
                 + " origin=" + Math.round(originX) + "," + Math.round(originY));
 

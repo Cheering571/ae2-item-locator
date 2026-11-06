@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.6
+
+### Fixed
+
+- **Controller slot frame was smaller than the slot.** A `CellSlot` reports a 16x16 icon area, but
+  the grid cell it occupies is one pitch wide, so the frame hugged the icon instead of the slot. The
+  size is now derived from the neighbouring slots (smallest positive gap between distinct
+  coordinates) and the frame is centred on the icon, which makes it match the cell exactly. A
+  single-cell grid falls back to the icon size plus the usual 1px border.
+
 ## 1.3.5
 
 ### Fixed
