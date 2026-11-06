@@ -289,7 +289,7 @@ public final class EcoStorageOverlay {
         var seen = new StringBuilder();
         var xs = new ArrayList<Float>();
         var ys = new ArrayList<Float>();
-        Object matched = null;
+        var matched = new ArrayList<Object>();
         int slots = 0;
 
         for (Object child : children) {
@@ -313,19 +313,16 @@ public final class EcoStorageOverlay {
                         .append(pos.getZ()).append(' ');
             }
 
-            if (matched == null) {
-                for (CellRef ref : refs) {
-                    if (ref.pos().equals(pos)) {
-                        matched = child;
-                        probe("matched index=" + index + " pos=" + pos.toShortString()
-                                + " slots=" + slots);
-                        break;
-                    }
+            // Every drive that holds the item gets a frame, not just the first one.
+            for (CellRef ref : refs) {
+                if (ref.pos().equals(pos)) {
+                    matched.add(child);
+                    break;
                 }
             }
         }
 
-        if (matched == null) {
+        if (matched.isEmpty()) {
             probe("no match; slots=" + slots + " seen=" + seen);
             drawPageHint(graphics, grid, refs, originX, originY);
             return;
@@ -333,7 +330,13 @@ public final class EcoStorageOverlay {
 
         // The element is only the icon area (16px); a grid cell is one pitch wide. Derive the pitch
         // from the neighbouring slots so the frame covers the slot, not the icon.
-        drawFrame(graphics, matched, originX, originY, minPitch(xs), minPitch(ys));
+        float pitchX = minPitch(xs);
+        float pitchY = minPitch(ys);
+        for (Object slot : matched) {
+            drawFrame(graphics, slot, originX, originY, pitchX, pitchY);
+        }
+        probe("matched n=" + matched.size() + " of slots=" + slots
+                + " pitch=" + Math.round(pitchX) + "x" + Math.round(pitchY));
     }
 
     /** Smallest positive gap between distinct coordinates; 0 when there is nothing to measure. */

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.7
+
+### Fixed
+
+- **Only one controller slot was framed when several drives held the item.** `drawForGrid` stopped
+  at the first match. It now collects every slot whose drive position is in the answer set and
+  frames all of them, which matches the vanilla/ExtendedAE behaviour where the drive overlay
+  highlights the whole set rather than one entry.
+
 ## 1.3.6
 
 ### Fixed
