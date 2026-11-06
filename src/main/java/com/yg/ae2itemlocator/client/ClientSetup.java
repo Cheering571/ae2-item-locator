@@ -6,33 +6,33 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.config.ModConfig;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.event.RenderGuiEvent;
-import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.client.event.RenderGuiEvent;
+import net.minecraftforge.client.event.ScreenEvent;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
 
 public final class ClientSetup {
 
-    public static void init(IEventBus modBus, ModContainer container) {
+    public static void init(IEventBus modBus) {
         ClientBridge.onHello = ClientIndexState::markServerReady;
         ClientBridge.onResult = ClientIndexState::accept;
         ClientBridge.onDriveSlots = DriveSlotState::accept;
 
-        container.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
 
         modBus.addListener(ClientSetup::registerKeys);
 
-        NeoForge.EVENT_BUS.addListener(ClientSetup::onScreenKey);
-        NeoForge.EVENT_BUS.addListener(ClientSetup::onScreenClosing);
-        NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTick);
-        NeoForge.EVENT_BUS.addListener(ClientSetup::onRenderGui);
-        NeoForge.EVENT_BUS.addListener(HighlightRenderer::onRenderLevel);
-        NeoForge.EVENT_BUS.addListener(EcoStorageOverlay::onRenderScreen);
-        NeoForge.EVENT_BUS.addListener(EcoStorageOverlay::onContainerForeground);
+        MinecraftForge.EVENT_BUS.addListener(ClientSetup::onScreenKey);
+        MinecraftForge.EVENT_BUS.addListener(ClientSetup::onScreenClosing);
+        MinecraftForge.EVENT_BUS.addListener(ClientSetup::onClientTick);
+        MinecraftForge.EVENT_BUS.addListener(ClientSetup::onRenderGui);
+        MinecraftForge.EVENT_BUS.addListener(HighlightRenderer::onRenderLevel);
+        MinecraftForge.EVENT_BUS.addListener(EcoStorageOverlay::onRenderScreen);
+        MinecraftForge.EVENT_BUS.addListener(EcoStorageOverlay::onContainerForeground);
     }
 
     private static void registerKeys(RegisterKeyMappingsEvent event) {
@@ -61,7 +61,10 @@ public final class ClientSetup {
         }
     }
 
-    private static void onClientTick(ClientTickEvent.Post event) {
+    private static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
 
         // Leaving a world must not leave a stale highlight behind.

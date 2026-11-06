@@ -3,18 +3,16 @@ package com.yg.ae2itemlocator.client;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yg.ae2itemlocator.common.CellRef;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 /**
  * Draws the lock highlight: a translucent shell + wireframe around every drive that holds the
@@ -60,20 +58,10 @@ public final class HighlightRenderer {
      * through the multiblock casing. {@code NO_DEPTH_TEST} plus {@code COLOR_WRITE} keeps them from
      * touching the depth buffer at all, which also stops them from hiding anything behind them.
      */
-    private static final RenderType THROUGH_WALLS = RenderType.create(
-            "ae2itemlocator_through_walls",
-            DefaultVertexFormat.POSITION_COLOR,
-            VertexFormat.Mode.QUADS,
-            1536,
-            false,
-            true,
-            RenderType.CompositeState.builder()
-                    .setShaderState(RenderStateShard.POSITION_COLOR_SHADER)
-                    .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
-                    .setCullState(RenderStateShard.NO_CULL)
-                    .setDepthTestState(RenderStateShard.NO_DEPTH_TEST)
-                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
-                    .createCompositeState(false));
+    // 1.20.1 keeps the composite-state shards protected, so a custom pipeline is out of reach
+    // without an access transformer. debugQuads is the same POSITION_COLOR quad pipeline and is
+    // already depth-test free, which is exactly what a through-wall overlay needs.
+    private static final RenderType THROUGH_WALLS = RenderType.debugQuads();
 
     public static void onRenderLevel(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
@@ -369,11 +357,15 @@ public final class HighlightRenderer {
             float x3, float y3, float z3,
             float x4, float y4, float z4,
             float alpha, float r, float g, float b) {
-        PoseStack.Pose entry = pose.last();
-        consumer.addVertex(entry, x1, y1, z1).setColor(r, g, b, alpha);
-        consumer.addVertex(entry, x2, y2, z2).setColor(r, g, b, alpha);
-        consumer.addVertex(entry, x3, y3, z3).setColor(r, g, b, alpha);
-        consumer.addVertex(entry, x4, y4, z4).setColor(r, g, b, alpha);
+        org.joml.Matrix4f matrix = pose.last().pose();
+        int a = Math.max(0, Math.min(255, (int) (alpha * 255f)));
+        int cr = Math.max(0, Math.min(255, (int) (r * 255f)));
+        int cg = Math.max(0, Math.min(255, (int) (g * 255f)));
+        int cb = Math.max(0, Math.min(255, (int) (b * 255f)));
+        consumer.vertex(matrix, x1, y1, z1).color(cr, cg, cb, a).endVertex();
+        consumer.vertex(matrix, x2, y2, z2).color(cr, cg, cb, a).endVertex();
+        consumer.vertex(matrix, x3, y3, z3).color(cr, cg, cb, a).endVertex();
+        consumer.vertex(matrix, x4, y4, z4).color(cr, cg, cb, a).endVertex();
     }
 
     private HighlightRenderer() {

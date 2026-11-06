@@ -1,6 +1,6 @@
 package com.yg.ae2itemlocator;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 /**
  * Server-side configuration. Only ever read from server code paths.
@@ -10,14 +10,14 @@ import net.neoforged.neoforge.common.ModConfigSpec;
  * languages we do not ship.
  */
 public final class Config {
-    public static final ModConfigSpec SPEC;
+    public static final ForgeConfigSpec SPEC;
 
-    public static final ModConfigSpec.BooleanValue ALLOW_QUERY;
-    public static final ModConfigSpec.IntValue CELLS_PER_TICK;
-    public static final ModConfigSpec.IntValue CACHE_SECONDS;
+    public static final ForgeConfigSpec.BooleanValue ALLOW_QUERY;
+    public static final ForgeConfigSpec.IntValue CELLS_PER_TICK;
+    public static final ForgeConfigSpec.IntValue CACHE_SECONDS;
 
     static {
-        var builder = new ModConfigSpec.Builder();
+        var builder = new ForgeConfigSpec.Builder();
 
         builder.translation("ae2itemlocator.config.server")
                 .comment("AE2 Item Locator (server)")

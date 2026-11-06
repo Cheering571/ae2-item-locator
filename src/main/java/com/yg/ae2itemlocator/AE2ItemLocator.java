@@ -1,23 +1,22 @@
 package com.yg.ae2itemlocator;
 
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.loading.FMLEnvironment;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.server.ServerStoppingEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
-import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.api.distmarker.Dist;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.yg.ae2itemlocator.net.HelloPayload;
 import com.yg.ae2itemlocator.net.Network;
 import com.yg.ae2itemlocator.server.IndexManager;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLEnvironment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Entry point.
@@ -31,29 +30,32 @@ public final class AE2ItemLocator {
     public static final String MODID = "ae2itemlocator";
     public static final Logger LOG = LoggerFactory.getLogger("AE2 Item Locator");
 
-    public AE2ItemLocator(IEventBus modBus, ModContainer container) {
-        container.registerConfig(ModConfig.Type.SERVER, Config.SPEC);
+    public AE2ItemLocator() {
+        IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        modBus.addListener(Network::register);
+        ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, Config.SPEC);
+        Network.register();
 
-        NeoForge.EVENT_BUS.addListener(AE2ItemLocator::onServerTick);
-        NeoForge.EVENT_BUS.addListener(AE2ItemLocator::onPlayerLogin);
-        NeoForge.EVENT_BUS.addListener(AE2ItemLocator::onServerStopping);
+        MinecraftForge.EVENT_BUS.addListener(AE2ItemLocator::onServerTick);
+        MinecraftForge.EVENT_BUS.addListener(AE2ItemLocator::onPlayerLogin);
+        MinecraftForge.EVENT_BUS.addListener(AE2ItemLocator::onServerStopping);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             // Client-only classes are referenced exclusively from inside this branch, so a
             // dedicated server never tries to load them.
-            com.yg.ae2itemlocator.client.ClientSetup.init(modBus, container);
+            com.yg.ae2itemlocator.client.ClientSetup.init(modBus);
         }
     }
 
-    private static void onServerTick(ServerTickEvent.Post event) {
-        IndexManager.tick();
+    private static void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) {
+            IndexManager.tick();
+        }
     }
 
     private static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            PacketDistributor.sendToPlayer(player, new HelloPayload());
+            Network.toPlayer(player, new HelloPayload());
         }
     }
 

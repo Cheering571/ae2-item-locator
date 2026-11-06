@@ -2,7 +2,8 @@
   "required": true,
   "minVersion": "0.8.5",
   "package": "com.yg.ae2itemlocator.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "ae2itemlocator.refmap.json",
   "client": [
     "MEStorageScreenMixin",
     "AEBaseScreenMixin"

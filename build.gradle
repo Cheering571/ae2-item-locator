@@ -1,83 +1,70 @@
 plugins {
-    id 'java-library'
     id 'eclipse'
     id 'idea'
     id 'maven-publish'
-    id 'net.neoforged.moddev' version '2.0.148'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'org.spongepowered.mixin' version '0.7.+'
 }
 
-version = mod_version
+version = "${mod_version}"
 group = mod_group_id
 
 base {
-    archivesName = mod_id
+    archivesName = "${mod_id}-forge"
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
     withSourcesJar()
 }
 
-// ---------------------------------------------------------------------------
-// NeoForge (ModDevGradle)
-// ---------------------------------------------------------------------------
-neoForge {
-    version = project.neo_version
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
 
     runs {
         client {
-            client()
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods { "${mod_id}" { source sourceSets.main } }
         }
         server {
-            server()
-            programArgument '--nogui'
-        }
-    }
-
-    mods {
-        "${mod_id}" {
-            sourceSet sourceSets.main
+            workingDirectory project.file('run/server')
+            property 'forge.logging.console.level', 'debug'
+            args '--nogui'
+            mods { "${mod_id}" { source sourceSets.main } }
         }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Dependencies
-// ---------------------------------------------------------------------------
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+mixin {
+    add sourceSets.main, "${mod_id}.refmap.json"
+    config "${mod_id}.mixins.json"
+}
+
 repositories {
-    maven {
-        name = 'ModMaven'
-        url = 'https://modmaven.dev/'
-        content { includeGroup 'appeng' }
-    }
+    mavenCentral()
 }
 
 dependencies {
-    // ---- AE2 -------------------------------------------------------------
-    // 编译期只需要 AE2 的 jar，放进 libs/ 即可（ModMaven 上只到 19.2.0-beta）。
-    // 用 implementation 而不是 compileOnly：这样 `runClient` / `runServer` 里也有 AE2，
-    // 否则开发环境会报 "ae2 is not installed"。
-    def ae2Local = fileTree(dir: 'libs', include: ['*.jar'])
-    if (!ae2Local.isEmpty()) {
-        implementation ae2Local
-        println "[ae2-disk-locator] using local AE2 jar from libs/"
-    } else {
-        compileOnly "appeng:appliedenergistics2:${ae2_version}"
-        runtimeOnly "appeng:appliedenergistics2:${ae2_version}"
-        println "[ae2-disk-locator] using maven AE2 ${ae2_version} (put a jar in libs/ if this fails)"
-    }
+    minecraft "net.minecraftforge:forge:1.20.1-${forge_version}"
+
+    // AE2 15.x ships as a production jar (SRG names), so it has to be deobfuscated
+    // for compilation and for the dev runtime.
+    implementation fg.deobf(files('libs/appliedenergistics2-forge-15.4.12.jar'))
+    implementation fg.deobf(files('libs/guideme-20.1.15.jar'))
+
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
-// ---------------------------------------------------------------------------
-// Resources
-// ---------------------------------------------------------------------------
 tasks.withType(ProcessResources).configureEach {
     var replaceProperties = [
             minecraft_version      : minecraft_version,
             minecraft_version_range: minecraft_version_range,
-            neo_version            : neo_version,
-            neo_version_range      : neo_version_range,
+            forge_version          : forge_version,
+            forge_version_range    : forge_version_range,
             loader_version_range   : loader_version_range,
             ae2_version            : ae2_version,
             ae2_version_range      : ae2_version_range,
@@ -90,12 +77,26 @@ tasks.withType(ProcessResources).configureEach {
     ]
     inputs.properties replaceProperties
 
-    filesMatching(['META-INF/neoforge.mods.toml']) {
+    filesMatching(['META-INF/mods.toml']) {
         expand replaceProperties
     }
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.release = 21
+    options.release = 17
+}
+
+jar {
+    manifest {
+        attributes([
+                "Specification-Title"     : mod_id,
+                "Specification-Vendor"    : mod_authors,
+                "Specification-Version"   : "1",
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : project.jar.archiveVersion,
+                "Implementation-Vendor"   : mod_authors,
+                "MixinConfigs"            : "${mod_id}.mixins.json"
+        ])
+    }
 }

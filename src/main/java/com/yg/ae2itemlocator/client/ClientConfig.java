@@ -1,6 +1,6 @@
 package com.yg.ae2itemlocator.client;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 /**
  * Client-side configuration.
@@ -10,28 +10,28 @@ import net.neoforged.neoforge.common.ModConfigSpec;
  * languages we do not ship.
  */
 public final class ClientConfig {
-    public static final ModConfigSpec SPEC;
+    public static final ForgeConfigSpec SPEC;
 
-    public static final ModConfigSpec.IntValue MAX_SOURCES;
-    public static final ModConfigSpec.BooleanValue BEAM;
-    public static final ModConfigSpec.IntValue HIGHLIGHT_SECONDS;
+    public static final ForgeConfigSpec.IntValue MAX_SOURCES;
+    public static final ForgeConfigSpec.BooleanValue BEAM;
+    public static final ForgeConfigSpec.IntValue HIGHLIGHT_SECONDS;
 
-    public static final ModConfigSpec.BooleanValue UNIFIED_COLOR;
-    public static final ModConfigSpec.IntValue COLOR_UNIFIED;
-    public static final ModConfigSpec.IntValue COLOR_BEAM;
-    public static final ModConfigSpec.IntValue COLOR_DRIVE;
-    public static final ModConfigSpec.IntValue COLOR_SLOT;
+    public static final ForgeConfigSpec.BooleanValue UNIFIED_COLOR;
+    public static final ForgeConfigSpec.IntValue COLOR_UNIFIED;
+    public static final ForgeConfigSpec.IntValue COLOR_BEAM;
+    public static final ForgeConfigSpec.IntValue COLOR_DRIVE;
+    public static final ForgeConfigSpec.IntValue COLOR_SLOT;
 
-    public static final ModConfigSpec.BooleanValue RAINBOW_UNIFIED;
-    public static final ModConfigSpec.BooleanValue RAINBOW_BEAM;
-    public static final ModConfigSpec.BooleanValue RAINBOW_DRIVE;
-    public static final ModConfigSpec.BooleanValue RAINBOW_SLOT;
+    public static final ForgeConfigSpec.BooleanValue RAINBOW_UNIFIED;
+    public static final ForgeConfigSpec.BooleanValue RAINBOW_BEAM;
+    public static final ForgeConfigSpec.BooleanValue RAINBOW_DRIVE;
+    public static final ForgeConfigSpec.BooleanValue RAINBOW_SLOT;
 
-    public static final ModConfigSpec.IntValue HUD_X;
-    public static final ModConfigSpec.IntValue HUD_Y;
+    public static final ForgeConfigSpec.IntValue HUD_X;
+    public static final ForgeConfigSpec.IntValue HUD_Y;
 
     static {
-        var builder = new ModConfigSpec.Builder();
+        var builder = new ForgeConfigSpec.Builder();
 
         builder.translation("ae2itemlocator.config.client")
                 .comment("AE2 Item Locator (client)")
@@ -152,7 +152,7 @@ public final class ClientConfig {
      * highlight and the link line must all be the same colour at the same moment. Giving each part
      * its own phase looked like a bug.
      */
-    private static int resolve(ModConfigSpec.IntValue separate, ModConfigSpec.BooleanValue separateRainbow) {
+    private static int resolve(ForgeConfigSpec.IntValue separate, ForgeConfigSpec.BooleanValue separateRainbow) {
         boolean isUnified = unified();
         boolean rainbow = isUnified ? RAINBOW_UNIFIED.get() : separateRainbow.get();
         int rgb = rainbow ? rainbowRgb() : (isUnified ? COLOR_UNIFIED.get() : separate.get());

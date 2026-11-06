@@ -4,7 +4,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -88,8 +88,8 @@ public final class ConfigScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
+    public void renderBackground(GuiGraphics graphics) {
+        super.renderBackground(graphics);
 
         // panel
         graphics.fill(px, py, px + PANEL_W, py + PANEL_H, PANEL_BG);
@@ -150,8 +150,8 @@ public final class ConfigScreen extends Screen {
     }
 
     private final class ColorRow {
-        private final ModConfigSpec.ConfigValue<Integer> config;
-        private final ModConfigSpec.BooleanValue rainbow;
+        private final ForgeConfigSpec.ConfigValue<Integer> config;
+        private final ForgeConfigSpec.BooleanValue rainbow;
         private final String labelKey;
         private final int y;
         private final ColorSlider red;
@@ -160,7 +160,7 @@ public final class ConfigScreen extends Screen {
         private final EditBox hex;
         private boolean syncing;
 
-        ColorRow(ModConfigSpec.ConfigValue<Integer> config, ModConfigSpec.BooleanValue rainbow,
+        ColorRow(ForgeConfigSpec.ConfigValue<Integer> config, ForgeConfigSpec.BooleanValue rainbow,
                 String labelKey, int y) {
             this.config = config;
             this.rainbow = rainbow;

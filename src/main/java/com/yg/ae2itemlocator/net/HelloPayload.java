@@ -1,30 +1,27 @@
 package com.yg.ae2itemlocator.net;
 
-import com.yg.ae2itemlocator.AE2ItemLocator;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.network.NetworkEvent;
+
+import java.util.function.Supplier;
 
 /**
  * Sent once when a player joins, so the client knows the server side is present.
  * Without it the client stays quiet and never sends a query.
  */
-public record HelloPayload() implements CustomPacketPayload {
+public record HelloPayload() {
 
-    public static final CustomPacketPayload.Type<HelloPayload> TYPE =
-            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(AE2ItemLocator.MODID, "hello"));
-
-    public static final StreamCodec<RegistryFriendlyByteBuf, HelloPayload> STREAM_CODEC =
-            StreamCodec.unit(new HelloPayload());
-
-    @Override
-    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
-        return TYPE;
+    public static void encode(FriendlyByteBuf buf, HelloPayload payload) {
+        // no data
     }
 
-    public static void handle(HelloPayload payload, IPayloadContext context) {
+    public static HelloPayload decode(FriendlyByteBuf buf) {
+        return new HelloPayload();
+    }
+
+    public static void handle(HelloPayload payload, Supplier<NetworkEvent.Context> contextSupplier) {
+        NetworkEvent.Context context = contextSupplier.get();
         context.enqueueWork(() -> ClientBridge.onHello.run());
+        context.setPacketHandled(true);
     }
 }

@@ -3,7 +3,7 @@ package com.yg.ae2itemlocator.client;
 import appeng.api.stacks.AEKey;
 import com.yg.ae2itemlocator.net.DiskQueryPayload;
 import com.yg.ae2itemlocator.net.DiskResultPayload;
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.yg.ae2itemlocator.net.Network;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -116,7 +116,7 @@ public final class ClientIndexState {
             return;
         }
         PENDING.put(key, now);
-        PacketDistributor.sendToServer(new DiskQueryPayload(containerId, key, force));
+        Network.toServer(new DiskQueryPayload(containerId, key, force));
     }
 
     private static long lastBackgroundPoll;
@@ -144,7 +144,7 @@ public final class ClientIndexState {
             return;
         }
         lastBackgroundPoll = now;
-        PacketDistributor.sendToServer(new DiskQueryPayload(-1, key, true));
+        Network.toServer(new DiskQueryPayload(-1, key, true));
     }
 
     public static void accept(DiskResultPayload payload) {

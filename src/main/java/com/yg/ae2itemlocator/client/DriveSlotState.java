@@ -5,7 +5,7 @@ import appeng.client.gui.AEBaseScreen;
 import com.yg.ae2itemlocator.net.DriveSlotQueryPayload;
 import com.yg.ae2itemlocator.net.DriveSlotResultPayload;
 import net.minecraft.client.Minecraft;
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.yg.ae2itemlocator.net.Network;
 
 import java.util.HashSet;
 import java.util.Objects;
@@ -50,7 +50,7 @@ public final class DriveSlotState {
 
         if (changed || now - lastRequest > REFRESH_MS) {
             lastRequest = now;
-            PacketDistributor.sendToServer(new DriveSlotQueryPayload(currentContainer, locked));
+            Network.toServer(new DriveSlotQueryPayload(currentContainer, locked));
         }
     }
 

@@ -14,7 +14,7 @@ import com.yg.ae2itemlocator.common.CellRef;
 import com.yg.ae2itemlocator.net.DiskResultPayload;
 import com.yg.ae2itemlocator.net.DriveSlotResultPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.yg.ae2itemlocator.net.Network;
 
 import java.util.HashMap;
 import java.util.List;
@@ -54,7 +54,7 @@ public final class QueryService {
                 && player.containerMenu instanceof MEStorageMenu;
 
         if (terminalOpen) {
-            node = ((MEStorageMenu) player.containerMenu).getGridNode();
+            node = ((MEStorageMenu) player.containerMenu).getNetworkNode();
             if (node != null && node.isActive()) {
                 REMEMBERED.put(player.getUUID(), new Remembered(node, now));
             }
@@ -106,7 +106,7 @@ public final class QueryService {
     private static String lastAnswer = "";
 
     private static void send(ServerPlayer player, AEKey key, byte state, int progress, List<CellRef> refs) {
-        PacketDistributor.sendToPlayer(player, new DiskResultPayload(key, state, progress, List.copyOf(refs)));
+        Network.toPlayer(player, new DiskResultPayload(key, state, progress, List.copyOf(refs)));
     }
 
     /**
@@ -157,7 +157,7 @@ public final class QueryService {
         }
         if (!(menu.getBlockEntity() instanceof IChestOrDrive drive)) {
             // Not a drive GUI: answer with an empty list so the client clears its state.
-            PacketDistributor.sendToPlayer(player, new DriveSlotResultPayload(key, new int[0]));
+            Network.toPlayer(player, new DriveSlotResultPayload(key, new int[0]));
             return;
         }
 
@@ -190,7 +190,7 @@ public final class QueryService {
 
         int[] result = new int[found];
         System.arraycopy(slots, 0, result, 0, found);
-        PacketDistributor.sendToPlayer(player, new DriveSlotResultPayload(key, result));
+        Network.toPlayer(player, new DriveSlotResultPayload(key, result));
     }
 
     private QueryService() {

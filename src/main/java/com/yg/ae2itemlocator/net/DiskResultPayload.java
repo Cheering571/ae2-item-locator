@@ -1,21 +1,18 @@
 package com.yg.ae2itemlocator.net;
 
 import appeng.api.stacks.AEKey;
-import com.yg.ae2itemlocator.AE2ItemLocator;
 import com.yg.ae2itemlocator.common.CellRef;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Server to client answer for a single key.
  */
-public record DiskResultPayload(AEKey key, byte state, int progress, List<CellRef> refs) implements CustomPacketPayload {
+public record DiskResultPayload(AEKey key, byte state, int progress, List<CellRef> refs) {
 
     /** Index is still being built; {@link #progress} is 0..100. */
     public static final byte BUILDING = 0;
@@ -27,14 +24,8 @@ public record DiskResultPayload(AEKey key, byte state, int progress, List<CellRe
     /** Hard cap so a malicious or broken server cannot blow up the client. */
     public static final int MAX_REFS = 32;
 
-    public static final CustomPacketPayload.Type<DiskResultPayload> TYPE =
-            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(AE2ItemLocator.MODID, "result"));
-
-    public static final StreamCodec<RegistryFriendlyByteBuf, DiskResultPayload> STREAM_CODEC =
-            StreamCodec.of(DiskResultPayload::encode, DiskResultPayload::decode);
-
-    private static void encode(RegistryFriendlyByteBuf buf, DiskResultPayload payload) {
-        AEKey.STREAM_CODEC.encode(buf, payload.key);
+    public static void encode(FriendlyByteBuf buf, DiskResultPayload payload) {
+        AEKey.writeKey(buf, payload.key);
         buf.writeByte(payload.state);
         buf.writeVarInt(payload.progress);
         int count = Math.min(payload.refs.size(), MAX_REFS);
@@ -44,8 +35,8 @@ public record DiskResultPayload(AEKey key, byte state, int progress, List<CellRe
         }
     }
 
-    private static DiskResultPayload decode(RegistryFriendlyByteBuf buf) {
-        AEKey key = AEKey.STREAM_CODEC.decode(buf);
+    public static DiskResultPayload decode(FriendlyByteBuf buf) {
+        AEKey key = AEKey.readKey(buf);
         byte state = buf.readByte();
         int progress = buf.readVarInt();
         int count = Math.min(buf.readVarInt(), MAX_REFS);
@@ -56,13 +47,10 @@ public record DiskResultPayload(AEKey key, byte state, int progress, List<CellRe
         return new DiskResultPayload(key, state, progress, refs);
     }
 
-    @Override
-    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
-
-    public static void handle(DiskResultPayload payload, IPayloadContext context) {
+    public static void handle(DiskResultPayload payload, Supplier<NetworkEvent.Context> contextSupplier) {
+        NetworkEvent.Context context = contextSupplier.get();
         // ClientBridge holds no client-only types, so this is safe to reference on a server.
         context.enqueueWork(() -> ClientBridge.onResult.accept(payload));
+        context.setPacketHandled(true);
     }
 }
