@@ -18,6 +18,9 @@ import java.util.List;
  * {@code AEKeyRendering.getTooltip(entry.getWhat())}, and the returned list is mutable, so we can
  * append our "which drive holds this" lines before AE2 adds its own "stored amount" line.
  *
+ * <p>The handler is an instance method on purpose: the target is an instance method too, and
+ * Mixin 0.8.5 (Forge 1.20.1) rejects a static handler outright instead of merely skipping it.
+ *
  * <p>{@code require = 0} keeps the mod alive if a future AE2 version renames the method; the
  * feature then silently turns off instead of crashing the game.
  */
@@ -31,7 +34,7 @@ public abstract class MEStorageScreenMixin {
                     target = "Lappeng/api/client/AEKeyRendering;getTooltip(Lappeng/api/stacks/AEKey;)Ljava/util/List;"),
             require = 0,
             remap = false)
-    private static List<Component> ae2itemlocator$appendDiskSources(AEKey key) {
+    private List<Component> ae2itemlocator$appendDiskSources(AEKey key) {
         List<Component> lines = AEKeyRendering.getTooltip(key);
         DiskTooltip.appendSources(key, lines);
         return lines;
