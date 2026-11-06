@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.5
+
+### Fixed
+
+- **Controller slot frame position.** `getLocalToWorldPose()` returns an identity matrix outside
+  the UI draw pass — the diagnostic showed `m30 = m31 = 0` — so every formula built on it was
+  operating on nothing. The frame now uses `getPositionX/Y` (which already carries the absolute GUI
+  coordinate) minus the `ModularUI` origin, because the `GuiGraphics` pose at this point is
+  translated by exactly that origin.
+- **Diagnostic log spam.** The probe compared each message against the previous one, but the frame
+  and match messages alternate every frame, so both looked new and were written 60+ times a second.
+  Messages are now deduplicated in a small set (cleared every 24 distinct entries), so an open GUI
+  writes a handful of lines instead of megabytes.
+
 ## 1.3.4
 
 ### Fixed

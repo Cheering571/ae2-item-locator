@@ -50,7 +50,9 @@ public final class EcoStorageOverlay {
 
     private static boolean resolved;
     private static String resolveError = "";
-    private static String lastProbe = "";
+
+    /** Distinct probe messages already written for the current screen; see {@link #probe(String)}. */
+    private static final Set<String> LOGGED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private static final Map<Class<?>, Optional<Object>> ACCESSORS = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Optional<Method>> CELL_METHODS = new ConcurrentHashMap<>();
@@ -324,24 +326,26 @@ public final class EcoStorageOverlay {
         float width = (Float) getSizeWidth.invoke(slot);
         float height = (Float) getSizeHeight.invoke(slot);
 
-        // getLocalToWorldPose() already resolves the whole ancestor chain into GUI space. Adding the
-        // ModularUI origin shifted the frame by that origin (1.3.2); summing every ancestor's
-        // position multiplied it and pushed the frame off-screen (1.3.3). The raw pose is correct.
-        Matrix4f pose = (Matrix4f) getLocalToWorldPose.invoke(slot);
+        // getLocalToWorldPose() returns an identity matrix outside the UI draw pass (the log showed
+        // m30=/m31= 0), so it is useless here. getPositionX/Y already carry the absolute GUI
+        // coordinate, and the GuiGraphics pose at this point is translated by the screen's
+        // left/top — which is exactly what ModularUI reports as its origin.
+        float slotX = (Float) getPositionX.invoke(slot);
+        float slotY = (Float) getPositionY.invoke(slot);
+
         int w = Math.max(2, Math.round(width));
         int h = Math.max(2, Math.round(height));
-        int x = Math.round(pose.m30());
-        int y = Math.round(pose.m31());
+        int x = Math.round(slotX - originX);
+        int y = Math.round(slotY - originY);
 
         // Insurance: never draw nothing because a coordinate went absurd.
         if (Math.abs(x) > 5000 || Math.abs(y) > 5000) {
-            x = Math.round((Float) getPositionX.invoke(slot));
-            y = Math.round((Float) getPositionY.invoke(slot));
+            x = Math.round(slotX);
+            y = Math.round(slotY);
         }
 
         probe("frame x=" + x + " y=" + y + " w=" + w + " h=" + h
-                + " slotPos=" + Math.round((Float) getPositionX.invoke(slot)) + ","
-                + Math.round((Float) getPositionY.invoke(slot))
+                + " slotPos=" + Math.round(slotX) + "," + Math.round(slotY)
                 + " origin=" + Math.round(originX) + "," + Math.round(originY));
 
         // Same colours and geometry as the drive slot outline, so the configured slot colour
@@ -389,10 +393,8 @@ public final class EcoStorageOverlay {
                 ? Component.translatable("gui.ae2itemlocator.page_hint", targetPage, pages)
                 : Component.translatable("gui.ae2itemlocator.page_hint_unknown", pages);
 
-        Matrix4f pose = (Matrix4f) getLocalToWorldPose.invoke(grid);
-        int x = Math.round(pose.m30());
-        int y = Math.round(pose.m31() + 2f);
-
+        int x = Math.round(((Float) getPositionX.invoke(grid)) - originX);
+        int y = Math.round(((Float) getPositionY.invoke(grid)) - originY + 2f);
         Minecraft minecraft = Minecraft.getInstance();
         graphics.drawString(minecraft.font, text.copy().withStyle(ChatFormatting.YELLOW), x, y, HINT, true);
     }
@@ -424,9 +426,16 @@ public final class EcoStorageOverlay {
         return out.toString().trim();
     }
 
+    /**
+     * Logs each distinct message once per open screen. Comparing only against the previous message
+     * was not enough: the frame and match messages alternate every frame, so each always looked
+     * "new" and the log grew by two lines per frame.
+     */
     private static void probe(String message) {
-        if (!message.equals(lastProbe)) {
-            lastProbe = message;
+        if (LOGGED.size() > 24) {
+            LOGGED.clear();
+        }
+        if (LOGGED.add(message)) {
             AE2ItemLocator.LOG.info("[ae2-disk-locator] eco-gui {}", message);
         }
     }
