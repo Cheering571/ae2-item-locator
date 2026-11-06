@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.2
+
+### Added
+
+- **Mod icon.** `icon.png` is now shipped and declared through `logoFile`, so the mod list and
+  both mod sites show it.
+
+### Changed
+
+- Author metadata is now **Cheering** (previously `YG`) in `neoforge.mods.toml`, and the LICENSE
+  copyright line follows.
+
 ## 1.4.1
 
 ### Fixed
