@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.4
+
+### Fixed
+
+- **Controller slot frame disappeared in 1.3.3.** That build summed every ancestor's
+  `getPositionX/Y`, but those values already include their ancestors, so the sum multiplied the
+  coordinate and pushed the frame off-screen. The frame is drawn from the element's
+  `getLocalToWorldPose()` alone now: no origin term, no accumulation. A sanity fallback keeps a
+  frame visible even if a coordinate comes back absurd.
+
 ## 1.3.3
 
 ### Fixed
