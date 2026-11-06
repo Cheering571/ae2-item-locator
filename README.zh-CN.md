@@ -88,6 +88,27 @@ AE2 Item Locator 回答了应用能源 2（AE2）本身无法回答的问题：*
 需要 **应用能源 2** 及其前置 **GuideME**。本模组必须在**客户端和服务端同时安装**（单人游戏自动满足）。
 只装一侧时功能会静默关闭，不会报错。
 
+## 适配的模组
+
+识别是通用的：凡是实现了 AE2 `IChestOrDrive` 的方块实体，都会逐个槽位读取，槽位里的存储单元不管来自
+哪个模组都会被检查。下表列出的是**已在实际模组上验证过**的组合。
+
+| 模组 | 适配内容 | 识别方式 |
+|---|---|---|
+| **应用能源 2**（必需） | ME 驱动器（10 槽）、ME 箱子 | 原生 `IChestOrDrive` / `IMEChest` |
+| **ExtendedAE** | 扩展驱动器 Ex Drive —— 20 槽，**左右两列都支持**，槽位描边可用 | `TileExDrive extends DriveBlockEntity` |
+| **MEGA Cells** | Cell Dock 部件（装在 cable 上的单元座） | `CellDockPart implements IChestOrDrive` |
+| **Neo ECO AE Extension** | `eco_drive` 及其存储子系统主机：连线、主机高亮、控制器界面内槽位描边、页码提示 | 未实现 `IChestOrDrive`，通过 `getCellStack()` / `getCellInventory()` 契约探测 |
+| **AE2 Things**、**MEGA Cells** 大宗单元、以及任何其他存储单元 | 定位到装它的那个驱动器 | 直接向驱动器查询每个槽位的内容，与单元来自哪个模组无关 |
+| **其他任何**提供驱动器的附属模组 | 自动识别 | 只要实现 `IChestOrDrive` |
+
+未覆盖的情况：
+
+- **Storage Bus 指向非 AE 容器**（抽屉、木桶、箱子）—— 它们不是驱动器，物品没有物理磁盘可指。
+  物品在终端里依然可见。
+- **既没有实现 `IChestOrDrive`、也不符合 `getCellStack()` / `getCellInventory()` 契约的存储方块** ——
+  比如只暴露聚合存储视图的某些多方块。遇到这类可以带模组名提 issue。
+
 ## 安装
 
 1. 为 Minecraft 1.21.1 安装 NeoForge 21.1.169 或更高版本。

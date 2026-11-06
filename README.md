@@ -96,6 +96,29 @@ Requires **Applied Energistics 2** and its dependency **GuideME**. The mod must 
 **both** the client and the server (in singleplayer that is automatic). With only one side
 installed it stays silent instead of erroring.
 
+## Supported mods
+
+Detection is generic: every block entity that implements AE2's `IChestOrDrive` is read slot by
+slot, and every cell item inside it is inspected, whichever mod added that cell. The table lists
+the combinations that have been checked against real mods.
+
+| Mod | What is supported | How it is found |
+|---|---|---|
+| **Applied Energistics 2** *(required)* | ME Drive (10 slots), ME Chest | native `IChestOrDrive` / `IMEChest` |
+| **ExtendedAE** | Ex Drive — 20 slots, **both columns**; the slot outline works there too | `TileExDrive extends DriveBlockEntity` |
+| **MEGA Cells** | Cell Dock part (cable-mounted cell holder) | `CellDockPart implements IChestOrDrive` |
+| **Neo ECO AE Extension** | `eco_drive` and its storage subsystem host: link line, host highlight, slot outline inside the controller GUI, page hint | not `IChestOrDrive`; probed through `getCellStack()` / `getCellInventory()` |
+| **AE2 Things**, **MEGA Cells** bulk cells, any other cell item | located in whichever drive holds it | the drive is asked for its per-slot inventory, so the cell's own mod does not matter |
+| **Any other addon** that adds a drive | picked up automatically | anything implementing `IChestOrDrive` |
+
+Not covered:
+
+- **Storage buses onto non-AE inventories** (drawers, barrels, chests) — those are not drives, so
+  the item has no physical disk to point at. It is still visible in the terminal.
+- **Cell-holding blocks that implement neither `IChestOrDrive` nor the `getCellStack()` /
+  `getCellInventory()` contract** — for example a multiblock that only exposes an aggregate storage
+  view. If you meet one, open an issue with the mod name.
+
 ## Installation
 
 1. Install NeoForge 21.1.169 or newer for Minecraft 1.21.1.
