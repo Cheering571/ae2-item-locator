@@ -57,11 +57,15 @@ public final class ConfigScreen extends Screen {
         }));
 
         if (ClientConfig.unified()) {
-            rows.add(new ColorRow(ClientConfig.COLOR_UNIFIED, "gui.ae2itemlocator.color.unified", py + 58));
+            rows.add(new ColorRow(ClientConfig.COLOR_UNIFIED, ClientConfig.RAINBOW_UNIFIED,
+                    "gui.ae2itemlocator.color.unified", py + 58));
         } else {
-            rows.add(new ColorRow(ClientConfig.COLOR_BEAM, "gui.ae2itemlocator.color.beam", py + 58));
-            rows.add(new ColorRow(ClientConfig.COLOR_DRIVE, "gui.ae2itemlocator.color.drive", py + 88));
-            rows.add(new ColorRow(ClientConfig.COLOR_SLOT, "gui.ae2itemlocator.color.slot", py + 118));
+            rows.add(new ColorRow(ClientConfig.COLOR_BEAM, ClientConfig.RAINBOW_BEAM,
+                    "gui.ae2itemlocator.color.beam", py + 58));
+            rows.add(new ColorRow(ClientConfig.COLOR_DRIVE, ClientConfig.RAINBOW_DRIVE,
+                    "gui.ae2itemlocator.color.drive", py + 88));
+            rows.add(new ColorRow(ClientConfig.COLOR_SLOT, ClientConfig.RAINBOW_SLOT,
+                    "gui.ae2itemlocator.color.slot", py + 118));
         }
 
         addRenderableWidget(new AeButton(px + 10, py + 166, PANEL_W - 20, 16,
@@ -125,7 +129,10 @@ public final class ConfigScreen extends Screen {
         for (ColorRow row : rows) {
             graphics.drawString(font, Component.translatable(row.labelKey), px + 12, row.y, LABEL_COLOR, false);
 
-            int rgb = row.config.get() & 0xFFFFFF;
+            // While the rainbow cycle is on, the swatch previews the live colour.
+            int rgb = row.rainbow.get()
+                    ? ClientConfig.rainbowPreview(row.rainbowPhase())
+                    : row.config.get() & 0xFFFFFF;
             int swatchX = px + 96;
             graphics.fill(swatchX, row.y - 2, swatchX + 12, row.y + 10, 0xFF000000 | rgb);
             graphics.fill(swatchX - 1, row.y - 3, swatchX + 13, row.y - 2, SECTION_BORDER);
@@ -143,6 +150,7 @@ public final class ConfigScreen extends Screen {
 
     private final class ColorRow {
         private final ModConfigSpec.ConfigValue<Integer> config;
+        private final ModConfigSpec.BooleanValue rainbow;
         private final String labelKey;
         private final int y;
         private final ColorSlider red;
@@ -151,8 +159,10 @@ public final class ConfigScreen extends Screen {
         private final EditBox hex;
         private boolean syncing;
 
-        ColorRow(ModConfigSpec.ConfigValue<Integer> config, String labelKey, int y) {
+        ColorRow(ModConfigSpec.ConfigValue<Integer> config, ModConfigSpec.BooleanValue rainbow,
+                String labelKey, int y) {
             this.config = config;
+            this.rainbow = rainbow;
             this.labelKey = labelKey;
             this.y = y;
 
@@ -168,11 +178,33 @@ public final class ConfigScreen extends Screen {
             addRenderableWidget(green);
             addRenderableWidget(blue);
 
-            this.hex = new EditBox(font, px + 114, y - 3, 56, 14, Component.empty());
+            this.hex = new EditBox(font, px + 118, y - 3, 44, 14, Component.empty());
             this.hex.setMaxLength(6);
             this.hex.setValue(String.format("%06X", rgb));
             this.hex.setResponder(this::hexChanged);
             addRenderableWidget(hex);
+
+            addRenderableWidget(new AeButton(px + 166, y - 3, 42, 14, rainbowLabel(), button -> {
+                rainbow.set(!rainbow.get());
+                // The screen is iterating its children while this fires, so rebuild it from scratch.
+                if (minecraft != null) {
+                    minecraft.setScreen(new ConfigScreen());
+                }
+            }));
+        }
+
+        /** Same phase offsets the renderer uses, so the preview matches what is drawn in world. */
+        float rainbowPhase() {
+            if (ClientConfig.unified()) {
+                return 0f;
+            }
+            return labelKey.endsWith("beam") ? 0f : labelKey.endsWith("drive") ? 1f / 3f : 2f / 3f;
+        }
+
+        private Component rainbowLabel() {
+            return Component.translatable(rainbow.get()
+                    ? "gui.ae2itemlocator.rainbow.on"
+                    : "gui.ae2itemlocator.rainbow.off");
         }
 
         private void channelChanged() {

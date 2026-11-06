@@ -22,6 +22,11 @@ public final class ClientConfig {
     public static final ModConfigSpec.IntValue COLOR_DRIVE;
     public static final ModConfigSpec.IntValue COLOR_SLOT;
 
+    public static final ModConfigSpec.BooleanValue RAINBOW_UNIFIED;
+    public static final ModConfigSpec.BooleanValue RAINBOW_BEAM;
+    public static final ModConfigSpec.BooleanValue RAINBOW_DRIVE;
+    public static final ModConfigSpec.BooleanValue RAINBOW_SLOT;
+
     public static final ModConfigSpec.IntValue HUD_X;
     public static final ModConfigSpec.IntValue HUD_Y;
 
@@ -77,6 +82,26 @@ public final class ClientConfig {
                 .comment("Color of the slot outline when 'unified' is disabled.")
                 .defineInRange("slot", 0x66D9FF, 0, 0xFFFFFF);
 
+        RAINBOW_UNIFIED = builder
+                .translation("ae2itemlocator.config.client.colors.rainbowUnified")
+                .comment("Cycle the unified color through the rainbow instead of using a fixed value.")
+                .define("rainbowUnified", false);
+
+        RAINBOW_BEAM = builder
+                .translation("ae2itemlocator.config.client.colors.rainbowBeam")
+                .comment("Cycle the beam color through the rainbow when 'unified' is disabled.")
+                .define("rainbowBeam", false);
+
+        RAINBOW_DRIVE = builder
+                .translation("ae2itemlocator.config.client.colors.rainbowDrive")
+                .comment("Cycle the drive color through the rainbow when 'unified' is disabled.")
+                .define("rainbowDrive", false);
+
+        RAINBOW_SLOT = builder
+                .translation("ae2itemlocator.config.client.colors.rainbowSlot")
+                .comment("Cycle the slot color through the rainbow when 'unified' is disabled.")
+                .define("rainbowSlot", false);
+
         builder.pop();
 
         builder.translation("ae2itemlocator.config.client.hud")
@@ -104,20 +129,56 @@ public final class ClientConfig {
     }
 
     public static int beamColor() {
-        return argb(COLOR_UNIFIED.get(), COLOR_BEAM.get());
+        return resolve(COLOR_BEAM, RAINBOW_BEAM, 0f);
     }
 
     public static int driveColor() {
-        return argb(COLOR_UNIFIED.get(), COLOR_DRIVE.get());
+        return resolve(COLOR_DRIVE, RAINBOW_DRIVE, 1f / 3f);
     }
 
     public static int slotColor() {
-        return argb(COLOR_UNIFIED.get(), COLOR_SLOT.get());
+        return resolve(COLOR_SLOT, RAINBOW_SLOT, 2f / 3f);
     }
 
-    private static int argb(int unified, int separate) {
-        int rgb = unified() ? unified : separate;
+    /** Current colour of the rainbow cycle, for the settings screen's swatch preview. */
+    public static int rainbowPreview(float phase) {
+        return rainbowRgb(phase);
+    }
+
+    /**
+     * Unified mode wins over the per-part value, and the same rule applies to the rainbow flags:
+     * with "one colour" enabled the three parts share one cycling colour, otherwise each part
+     * cycles on its own phase so they stay visually distinct.
+     */
+    private static int resolve(ModConfigSpec.IntValue separate, ModConfigSpec.BooleanValue separateRainbow,
+            float phase) {
+        boolean isUnified = unified();
+        boolean rainbow = isUnified ? RAINBOW_UNIFIED.get() : separateRainbow.get();
+        int rgb = rainbow ? rainbowRgb(phase) : (isUnified ? COLOR_UNIFIED.get() : separate.get());
         return 0xFF000000 | (rgb & 0xFFFFFF);
+    }
+
+    private static final long RAINBOW_PERIOD_MS = 6000L;
+
+    private static int rainbowRgb(float phase) {
+        float hue = ((System.currentTimeMillis() % RAINBOW_PERIOD_MS) / (float) RAINBOW_PERIOD_MS + phase) % 1f;
+        float scaled = hue * 6f;
+        int sector = (int) scaled % 6;
+        float f = scaled - (int) scaled;
+        float q = 1f - f;
+
+        float r;
+        float g;
+        float b;
+        switch (sector) {
+            case 0 -> { r = 1f; g = f; b = 0f; }
+            case 1 -> { r = q; g = 1f; b = 0f; }
+            case 2 -> { r = 0f; g = 1f; b = f; }
+            case 3 -> { r = 0f; g = q; b = 1f; }
+            case 4 -> { r = f; g = 0f; b = 1f; }
+            default -> { r = 1f; g = 0f; b = q; }
+        }
+        return ((int) (r * 255) << 16) | ((int) (g * 255) << 8) | (int) (b * 255);
     }
 
     private ClientConfig() {

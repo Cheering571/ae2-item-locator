@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.4.0
+
+### Added
+
+- **Rainbow cycle per colour.** Every colour row in the settings screen (unified, beam, drive, slot)
+  now has an `RGB` toggle that cycles that colour through the hue wheel, 6 seconds per revolution.
+  With "one colour" enabled the three parts cycle together; otherwise each part cycles on its own
+  phase so they stay distinguishable. The swatch previews the live colour.
+
+### Fixed
+
+- **Controller highlight was too solid at night.** Its shell is drawn through walls, so all six
+  faces stack in the buffer instead of the three a drive shows, which made the block a nearly
+  opaque coloured blob. The controller shell now uses a third of the drive's alpha, so both read
+  the same while the block's own texture stays visible.
+
 ## 1.3.11
 
 ### Fixed

@@ -32,6 +32,12 @@ public final class HighlightRenderer {
 
     private static final float SHELL_ALPHA = 0.18f;
     private static final float BEAM_ALPHA = 0.30f;
+    /**
+     * The controller's shell is drawn through walls, so all six faces stack inside the buffer
+     * instead of the three the camera can see on a drive. It therefore needs roughly a third of the
+     * drive's alpha to read the same, otherwise the block becomes a solid coloured blob at night.
+     */
+    private static final float HOST_SHELL_ALPHA = 0.06f;
 
     /**
      * The link is drawn as three nested tubes instead of one solid one: a bright thin core and two
@@ -154,7 +160,7 @@ public final class HighlightRenderer {
                     continue;
                 }
 
-                shell(pose, ghost, ref.link(), dr, dg, db, SHELL_ALPHA);
+                shell(pose, ghost, ref.link(), dr, dg, db, HOST_SHELL_ALPHA);
                 for (int i = 0; i < HOST_EDGE_HALF.length; i++) {
                     wireBox(pose, ghost, ref.link(), HOST_EDGE_INFLATE[i],
                             HOST_EDGE_HALF[i], HOST_EDGE_ALPHA[i], dr, dg, db);
