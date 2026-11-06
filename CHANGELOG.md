@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.9
+
+### Fixed
+
+- **Slot frame alignment.** The frame was centred on the icon, but the slot is anchored at the
+  element origin: Neo ECO AE's own hover highlight draws
+  `NETextures.AE2_SLOT_HIGHLIGHT` at `(0, 0, 16, 16)` and `ItemSlot` draws the item at `(0, 0)` too.
+  Centring therefore pushed the frame two pixels left and up of the real slot border. The frame is
+  now top-left anchored at the slot position with a size of `max(slot pitch, icon + 2)` — 18x18 for
+  a normal grid — which lands exactly on the visible slot border.
+
 ## 1.3.8
 
 ### Fixed

@@ -329,41 +329,19 @@ public final class EcoStorageOverlay {
             return;
         }
 
-        // A CellSlot reports the 16x16 icon area, but the slot graphic around it is bigger. The
-        // real cell size comes from the grid itself: its width divided by its column count. The
-        // slot positions are only used as a fallback, and for the row count.
-        int columns = columnsOf(grid);
-        float gridW = (Float) getSizeWidth.invoke(grid);
-        float gridH = (Float) getSizeHeight.invoke(grid);
+        // A CellSlot draws its own hover highlight at (0,0) with a 16x16 texture, and the item icon
+        // sits at (0,0) as well, so the slot is anchored at the element origin — not centred on the
+        // icon. The visible slot border is the icon plus one pixel on each side, which also matches
+        // the distance between neighbouring slots.
         float iconW = (Float) getSizeWidth.invoke(matched.get(0));
         float iconH = (Float) getSizeHeight.invoke(matched.get(0));
-
-        float cellW = columns > 0 ? gridW / columns : 0f;
-        float cellH = 0f;
-        if (columns > 0 && slots > 0) {
-            int rows = (slots + columns - 1) / columns;
-            cellH = rows > 0 ? gridH / rows : 0f;
-        }
-
-        // Sanity: the grid must not be much smaller than an icon or several times larger.
-        if (cellW < iconW * 0.9f || cellW > iconW * 3f) {
-            cellW = minPitch(xs);
-        }
-        if (cellH < iconH * 0.9f || cellH > iconH * 3f) {
-            cellH = minPitch(ys);
-        }
-        if (cellW <= 0f) {
-            cellW = iconW + 4f;
-        }
-        if (cellH <= 0f) {
-            cellH = iconH + 4f;
-        }
+        float cellW = Math.max(minPitch(xs), iconW + 2f);
+        float cellH = Math.max(minPitch(ys), iconH + 2f);
 
         for (Object slot : matched) {
             drawFrame(graphics, slot, originX, originY, cellW, cellH);
         }
-        probe("matched n=" + matched.size() + " of slots=" + slots + " cols=" + columns
-                + " grid=" + Math.round(gridW) + "x" + Math.round(gridH)
+        probe("matched n=" + matched.size() + " of slots=" + slots
                 + " cell=" + Math.round(cellW) + "x" + Math.round(cellH)
                 + " icon=" + Math.round(iconW) + "x" + Math.round(iconH)
                 + " pitch=" + Math.round(minPitch(xs)) + "x" + Math.round(minPitch(ys)));
@@ -396,27 +374,18 @@ public final class EcoStorageOverlay {
     }
 
     private static void drawFrame(GuiGraphics graphics, Object slot, float originX, float originY,
-            float pitchX, float pitchY) throws Exception {
+            float cellW, float cellH) throws Exception {
         float slotX = (Float) getPositionX.invoke(slot);
         float slotY = (Float) getPositionY.invoke(slot);
-        float iconW = (Float) getSizeWidth.invoke(slot);
-        float iconH = (Float) getSizeHeight.invoke(slot);
 
-        // Fall back to the icon size plus the usual 1px slot border when the grid has one cell.
-        float cellW = pitchX > 0.5f ? pitchX : iconW + 2f;
-        float cellH = pitchY > 0.5f ? pitchY : iconH + 2f;
-
-        // The icon is centred inside its cell, so centre the frame on the icon.
-        float centreX = slotX - originX + iconW / 2f;
-        float centreY = slotY - originY + iconH / 2f;
-        int x = Math.round(centreX - cellW / 2f);
-        int y = Math.round(centreY - cellH / 2f);
+        // Top-left anchored: the slot graphic starts at the element origin, exactly where the icon
+        // and the mod's own hover highlight are drawn.
+        int x = Math.round(slotX - originX);
+        int y = Math.round(slotY - originY);
         int w = Math.max(2, Math.round(cellW));
         int h = Math.max(2, Math.round(cellH));
 
         probe("frame x=" + x + " y=" + y + " w=" + w + " h=" + h
-                + " icon=" + Math.round(iconW) + "x" + Math.round(iconH)
-                + " pitch=" + Math.round(cellW) + "x" + Math.round(cellH)
                 + " slotPos=" + Math.round(slotX) + "," + Math.round(slotY)
                 + " origin=" + Math.round(originX) + "," + Math.round(originY));
 
