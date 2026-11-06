@@ -82,11 +82,18 @@ Chinese selected.
 
 ## Compatibility
 
+This branch builds for **Minecraft 1.20.1 / Forge**. The main branch targets 1.21.1 / NeoForge; the
+feature set is identical apart from the Neo ECO AE integration described below.
+
+| Minecraft | Loader | Forge | AE2 | Status |
+|---|---|---|---|---|
+| 1.20.1 | Forge | 47.1.3+ | 15.4.12 – 15.x | Supported |
+
 | Minecraft | Loader | NeoForge | AE2 | Status |
 |---|---|---|---|---|
-| 1.21.1 | NeoForge | 21.1.169+ | 19.2.18 – 19.x | Supported |
+| 1.21.1 | NeoForge | 21.1.169+ | 19.2.18 – 19.x | Main branch |
 
-Requires **Applied Energistics 2** and **GuideME**. The mod must be installed on both the client and
+Requires **Applied Energistics 2** and **GuideME** (20.1.7 – 20.1.x on 1.20.1). The mod must be installed on both the client and
 the server; in singleplayer this is automatic. If only one side is installed it stays inactive
 instead of producing errors.
 
@@ -117,7 +124,7 @@ Not covered:
 
 1. Install NeoForge 21.1.169 or newer for Minecraft 1.21.1.
 2. Place [Applied Energistics 2](https://modrinth.com/mod/ae2) and GuideME into `mods/`.
-3. Place `ae2itemlocator-1.4.1.jar` into `mods/`.
+3. Place `ae2itemlocator-forge-1.0.0.jar` into `mods/`.
 
 ## Usage
 
@@ -218,7 +225,10 @@ yields the absolute GUI coordinate, which is all the overlay requires.
 gradle build            # or ./gradlew build
 ```
 
-Output: `build/libs/ae2itemlocator-<version>.jar`. No AE2 or GuideME classes are bundled.
+Output: `build/libs/ae2itemlocator-forge-<version>.jar`. No AE2 or GuideME classes are bundled.
+
+This branch uses ForgeGradle 6 with a JDK 17 toolchain; put `appliedenergistics2-forge-15.4.12.jar` and
+`guideme-20.1.15.jar` into `libs/` before building.
 
 ## License
 

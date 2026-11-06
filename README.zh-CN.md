@@ -70,11 +70,17 @@
 
 ## 兼容性
 
+本分支面向 **Minecraft 1.20.1 / Forge**。主分支面向 1.21.1 / NeoForge，除下文提到的 Neo ECO AE 联动外，功能完全一致。
+
+| Minecraft | 加载器 | Forge | AE2 | 状态 |
+|---|---|---|---|---|
+| 1.20.1 | Forge | 47.1.3+ | 15.4.12 – 15.x | 支持 |
+
 | Minecraft | 加载器 | NeoForge | AE2 | 状态 |
 |---|---|---|---|---|
-| 1.21.1 | NeoForge | 21.1.169+ | 19.2.18 – 19.x | 支持 |
+| 1.21.1 | NeoForge | 21.1.169+ | 19.2.18 – 19.x | 主分支 |
 
-需要 **应用能源 2** 与 **GuideME**。本模组必须在客户端与服务端同时安装，单人游戏自动满足；仅安装一侧时功能会保持静默，不会报错。
+需要 **应用能源 2** 与 **GuideME**（1.20.1 上为 20.1.7 – 20.1.x）。本模组必须在客户端与服务端同时安装，单人游戏自动满足；仅安装一侧时功能会保持静默，不会报错。
 
 ## 适配的模组
 
@@ -85,7 +91,7 @@
 | **应用能源 2**（必需） | ME 驱动器（10 槽）、ME 箱子 | 原生 `IChestOrDrive` / `IMEChest` |
 | **ExtendedAE** | 扩展驱动器 Ex Drive —— 20 槽，**左右两列均支持**，包含槽位描边 | `TileExDrive extends DriveBlockEntity` |
 | **MEGA Cells** | Cell Dock，即安装在 cable 上的单元座 | `CellDockPart implements IChestOrDrive` |
-| **Neo ECO AE Extension** | `eco_drive` 及其存储子系统主机：连线、主机高亮、控制器界面内的槽位描边、页码提示 | 未实现 `IChestOrDrive`，通过 `getCellStack()` / `getCellInventory()` 契约识别 |
+| **Neo ECO AE Extension**（仅 1.21.1 分支） | `eco_drive` 及其存储子系统主机：连线、主机高亮、控制器界面内的槽位描边、页码提示 | 未实现 `IChestOrDrive`，通过 `getCellStack()` / `getCellInventory()` 契约识别。1.20.1 上该探测代码仍在，但永远匹配不到，因为附属模组本身不存在 |
 | **AE2 Things**、**MEGA Cells** 大宗单元，以及其他任何存储单元 | 定位到存放它的驱动器 | 直接查询驱动器各槽位内容，与单元来源模组无关 |
 | **其他任何**提供驱动器的附属模组 | 无需额外适配 | 实现 `IChestOrDrive` 即可 |
 
@@ -98,7 +104,7 @@
 
 1. 为 Minecraft 1.21.1 安装 NeoForge 21.1.169 或更高版本。
 2. 将 [应用能源 2](https://modrinth.com/mod/ae2) 与 GuideME 放入 `mods/`。
-3. 将 `ae2itemlocator-1.4.1.jar` 放入 `mods/`。
+3. 将 `ae2itemlocator-forge-1.0.0.jar` 放入 `mods/`。
 
 ## 使用
 
@@ -184,7 +190,9 @@ AE2 的网络存储（`IStorageService#getInventory()`）在设计上就是聚�
 gradle build            # 或 ./gradlew build
 ```
 
-产物为 `build/libs/ae2itemlocator-<版本>.jar`，不会打包任何 AE2 或 GuideME 的类。
+产物为 `build/libs/ae2itemlocator-forge-<版本>.jar`，不会打包任何 AE2 或 GuideME 的类。
+
+本分支使用 ForgeGradle 6，需要 JDK 17 工具链；构建前把 `appliedenergistics2-forge-15.4.12.jar` 与 `guideme-20.1.15.jar` 放入 `libs/`。
 
 ## 许可
 
