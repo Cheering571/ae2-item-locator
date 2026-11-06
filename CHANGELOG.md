@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.11
+
+### Fixed
+
+- **Slot frame overshot the bottom edge by one pixel.** Left, right and top already lined up with
+  the slot border, but the slot's own bottom border sits one pixel inside the cell boundary. The
+  frame's height is shortened by that single pixel; the width is untouched.
+
 ## 1.3.10
 
 ### Fixed

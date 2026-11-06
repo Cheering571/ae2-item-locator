@@ -385,7 +385,10 @@ public final class EcoStorageOverlay {
         int x = Math.round(slotX - originX);
         int y = Math.round(slotY - originY);
         int w = Math.max(2, Math.round(cellW));
-        int h = Math.max(2, Math.round(cellH));
+        // The slot's own bottom border sits one pixel inside the cell boundary, so a full-height
+        // frame overshoots at the bottom only. Every other edge already lines up, so only the
+        // height is shortened.
+        int h = Math.max(2, Math.round(cellH) - 1);
 
         probe("frame x=" + x + " y=" + y + " w=" + w + " h=" + h
                 + " slotPos=" + Math.round(slotX) + "," + Math.round(slotY)
